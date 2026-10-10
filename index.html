@@ -71,6 +71,12 @@ input:focus,textarea:focus{outline:none;border-color:var(--acc)}
 select{width:100%;padding:.8rem .95rem;border-radius:var(--r);border:1px solid var(--border);background:var(--bg2);color:var(--ink);font-size:.88rem;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23e5c15a' d='M0 0l5 6 5-6z'/></svg>");background-repeat:no-repeat;background-position:right .95rem center;background-size:10px;font-family:inherit}
 select:focus{outline:none;border-color:var(--acc)}
 select option{background:var(--bg2);color:var(--ink)}
+.model-choice{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.5rem;margin-bottom:.7rem}
+.model-opt{padding:.7rem .8rem;border-radius:var(--r);border:1px solid var(--border);background:var(--bg2);cursor:pointer;transition:all .2s;text-align:center}
+.model-opt:hover{border-color:var(--faint);background:var(--bg3)}
+.model-opt.selected{border-color:var(--acc);background:rgba(229,193,90,.06);color:var(--acc)}
+.model-opt .mo-name{font-size:.78rem;font-weight:700;font-family:var(--fm);line-height:1.2;word-break:break-all}
+.model-opt .mo-desc{font-size:.62rem;opacity:.7;margin-top:.25rem;line-height:1.3}
 .palette-row{display:flex;gap:.4rem;flex-wrap:wrap}
 .palette-btn{flex:1;min-width:90px;padding:.6rem .4rem;border-radius:var(--r);border:1px solid var(--border);background:var(--bg2);color:var(--dim);font-size:.62rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:all .2s;text-align:center;font-family:inherit}
 .palette-btn:hover{border-color:var(--faint);color:var(--ink)}
@@ -152,9 +158,11 @@ select option{background:var(--bg2);color:var(--ink)}
 .hidden{display:none!important}
 .voice-toggle{display:flex;align-items:center;gap:.5rem;margin-top:.6rem;font-size:.75rem;color:var(--dim)}
 .voice-toggle input{width:auto;margin:0;accent-color:var(--acc)}
-.model-info{font-size:.7rem;font-family:var(--fm);color:var(--faint);padding:.4rem .7rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-top:.5rem;line-height:1.6}
+.model-info{font-size:.7rem;font-family:var(--fm);color:var(--faint);padding:.5rem .8rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-top:.5rem;line-height:1.7}
 .model-info strong{color:var(--acc)}
-@media(max-width:480px){h1{font-size:1.55rem}.videos-grid{grid-template-columns:1fr}body{padding-bottom:26rem}.debug-panel{height:200px}.status-bar{bottom:210px}.director-grid{grid-template-columns:1fr}}
+.model-info .ml-ok{color:var(--ok)}
+.model-info .ml-paid{color:var(--acc2)}
+@media(max-width:480px){h1{font-size:1.55rem}.videos-grid{grid-template-columns:1fr}body{padding-bottom:26rem}.debug-panel{height:200px}.status-bar{bottom:210px}.director-grid{grid-template-columns:1fr}.model-choice{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -165,23 +173,23 @@ select option{background:var(--bg2);color:var(--ink)}
 </header>
 
 <div class="banner">
-<strong>Comment ça marche :</strong> décris <span class="hl">une idée</span>, choisis un <span class="hl">réalisateur</span> et une <span class="hl">palette</span>, l'IA écrit le scénario, génère les personnages cohérents, produit chaque scène en vidéo avec <span class="hl">montage multi-plans</span>, puis joue le film dans un player plein écran avec <span class="hl">voix off française</span>. Chaque clé API ajoute un worker parallèle.
+<strong>Comment ça marche :</strong> décris <span class="hl">une idée</span>, choisis un <span class="hl">réalisateur</span>, une <span class="hl">palette</span> et un <span class="hl">modèle vidéo</span>, l'IA écrit le scénario, génère les personnages cohérents, produit chaque scène en vidéo avec <span class="hl">montage multi-plans</span>, puis joue le film dans un player plein écran avec <span class="hl">voix off française</span>. Chaque clé API ajoute un worker parallèle.
 </div>
 
 <div class="panel" id="api-panel">
-<label class="label">Clés API Agnes — une par ligne (chaque clé multiplie le débit)</label>
-<textarea id="api-keys-input" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx&#10;sk-yyyyyyyyyyyyyyyyyyyyyyyy" rows="3" spellcheck="false" autocomplete="off"></textarea>
-<button type="button" class="btn" id="api-save-btn">Enregistrer les clés</button>
-<button type="button" class="btn btn-test" id="api-test-btn">🔍 Tester les clés (modèles disponibles)</button>
+<label class="label">Clés API Agnes — une par ligne · accepte sk- (gratuit) et cpk- (payant)</label>
+<textarea id="api-keys-input" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx&#10;cpk-xxxxxxxxxxxxxxxxxxxxxxxx" rows="3" spellcheck="false" autocomplete="off"></textarea>
+<button type="button" class="btn" id="api-save-btn">💾 Enregistrer les clés</button>
+<button type="button" class="btn btn-test" id="api-test-btn">🔍 Tester les clés & détecter les modèles</button>
 <div class="status" id="api-status-line"><span class="dot"></span><span id="api-status-text">Aucune clé API enregistrée</span></div>
 <div class="keys-list" id="api-keys-status"></div>
 <div class="model-info" id="model-info">
-<strong>Modèles utilisés :</strong><br>
-· Texte : <span style="color:var(--acc);">agnes-2.5-flash</span><br>
-· Image : <span style="color:var(--acc);">agnes-image-2.1-flash</span><br>
-· Vidéo : <span style="color:var(--acc2);" id="video-model-display">agnes-video-2.5-flash</span> <span style="color:var(--ok);">✓ corrigé</span>
+<strong>Modèles actifs :</strong><br>
+· Texte : <span class="ml-ok">agnes-2.5-flash</span><br>
+· Image : <span class="ml-ok">agnes-image-2.1-flash</span><br>
+· Vidéo : <span class="ml-paid" id="video-model-display">agnes-video-2.5-flash</span> <span id="video-model-badge"></span>
 </div>
-<div class="hint">Clés gratuites sur <a href="https://platform.agnes-ai.com" target="_blank">platform.agnes-ai.com</a> · N clés = N vidéos en parallèle</div>
+<div class="hint">Clés sur <a href="https://platform.agnes-ai.com" target="_blank">platform.agnes-ai.com</a> · Les clés payantes (cpk-) ont accès à plus de modèles</div>
 </div>
 
 <div class="section open" id="section-idea">
@@ -224,6 +232,26 @@ select option{background:var(--bg2);color:var(--ink)}
 <span class="chevron">▼</span>
 </div>
 <div class="section-body"><div class="section-content">
+
+<div class="row">
+<label class="label">Modèle vidéo</label>
+<div class="model-choice" id="model-choice">
+  <div class="model-opt" data-model="auto">
+    <div class="mo-name">Auto</div>
+    <div class="mo-desc">Détecte le meilleur modèle disponible selon votre clé</div>
+  </div>
+  <div class="model-opt selected" data-model="agnes-video-2.5-flash">
+    <div class="mo-name">2.5-flash</div>
+    <div class="mo-desc">Rapide, gratuit, 720P, qualité standard</div>
+  </div>
+  <div class="model-opt" data-model="agnes-video-2.5">
+    <div class="mo-name">2.5</div>
+    <div class="mo-desc">Complet, payant, jusqu'à 2K, haute qualité</div>
+  </div>
+</div>
+<div class="hint" id="model-hint">Mode actuel : <strong id="model-hint-name">agnes-video-2.5-flash</strong></div>
+</div>
+
 <div class="row">
 <label class="label">Nombre de scènes</label>
 <select id="scene-count-select">
@@ -331,29 +359,32 @@ select option{background:var(--bg2);color:var(--ink)}
 
 <script>
 // ══════════════════════════════════════════════════════════════════
-// CONFIGURATION — MODÈLES CORRIGÉS
+// CONFIGURATION — MODÈLES CORRIGÉS + SUPPORT CLÉS PAYANTES
 // ══════════════════════════════════════════════════════════════════
 const API_BASE = 'https://apihub.agnes-ai.com/v1';
 const POLL_BASE = 'https://apihub.agnes-ai.com/agnesapi';
 const MODEL_TEXT = 'agnes-2.5-flash';
 const MODEL_IMAGE = 'agnes-image-2.1-flash';
 
-// ⚡ MODÈLE VIDÉO CORRIGÉ — agnes-video-v2.0 est obsolète
-// Ordre de préférence : flash (rapide/gratuit) puis complet (payant, haute qualité)
+// Modèles vidéo disponibles
 const VIDEO_MODELS = [
-  { id: 'agnes-video-2.5-flash', name: 'agnes-video-2.5-flash', quality: 'flash', paid: false },
-  { id: 'agnes-video-2.5',       name: 'agnes-video-2.5',       quality: 'full',  paid: true  }
+  { id: 'agnes-video-2.5-flash', label: '2.5-flash', quality: 'flash', paid: false, desc: 'Rapide, 720P' },
+  { id: 'agnes-video-2.5',       label: '2.5',       quality: 'full',  paid: true,  desc: 'Complet, jusqu\'à 2K' }
 ];
-let MODEL_VIDEO = VIDEO_MODELS[0].id; // Modèle actif
-const FRAME_RATE = 24;
+let MODEL_VIDEO = 'agnes-video-2.5-flash';    // modèle actif
+let USER_MODEL_CHOICE = 'agnes-video-2.5-flash'; // choix utilisateur (peut être 'auto')
 
+const FRAME_RATE = 24;
 const VIDEO_FIRST_POLL_DELAY_SEC = 60;
 const VIDEO_POLL_INTERVALS = [8, 8, 12, 12, 20, 20, 25];
 const VIDEO_MAX_POLL_ATTEMPTS = 100;
 
-const API_KEYS_STORAGE = 'cine_ia_api_keys_v2';
+const API_KEYS_STORAGE = 'cine_ia_api_keys_v3';
 const DEBUG_MAX = 800;
 const SCENE_DURATION_FRAMES_DEFAULT = 145;
+
+// Préfixes de clés acceptés
+const KEY_PREFIXES = ['sk-', 'cpk-'];
 
 // ══════════════════════════════════════════════════════════════════
 // CATALOGUES
@@ -420,7 +451,8 @@ const state = {
   playRAF: null,
   voiceEnabled: true,
   currentUtterance: null,
-  workingPollUrlBuilder: null
+  workingPollUrlBuilder: null,
+  availableModels: []
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -455,14 +487,45 @@ function legacyCopy(text,cb){const ta=document.createElement('textarea');ta.valu
 function toggleDebugCollapse(){const p=document.getElementById('debug-panel');const b=document.getElementById('debug-collapse-btn');if(!p||!b)return;debugCollapsed=!debugCollapsed;p.classList.toggle('collapsed',debugCollapsed);b.textContent=debugCollapsed?'+':'−'}
 
 // ══════════════════════════════════════════════════════════════════
-// MULTI-CLÉS API (avec support payant)
+// MULTI-CLÉS API (sk- gratuit ET cpk- payant)
 // ══════════════════════════════════════════════════════════════════
-function getStoredKeys(){try{const raw=localStorage.getItem(API_KEYS_STORAGE);if(!raw)return[];const arr=JSON.parse(raw);if(!Array.isArray(arr))return[];return arr.filter(k=>typeof k==='string'&&k.trim().length>0)}catch(e){return[]}}
+function isValidKeyFormat(k){
+  if(!k||typeof k!=='string')return false;
+  return KEY_PREFIXES.some(p=>k.startsWith(p));
+}
+function isPaidKey(k){
+  return k&&k.startsWith('cpk-');
+}
+function getStoredKeys(){try{const raw=localStorage.getItem(API_KEYS_STORAGE);if(!raw)return[];const arr=JSON.parse(raw);if(!Array.isArray(arr))return[];return arr.filter(k=>typeof k==='string'&&k.trim().length>0&&isValidKeyFormat(k.trim()))}catch(e){return[]}}
 function setStoredKeys(keys){try{localStorage.setItem(API_KEYS_STORAGE,JSON.stringify(keys))}catch(e){}}
-function refreshKeyPool(){const stored=getStoredKeys();const old=state.keyPool||[];state.keyPool=stored.map(k=>{const ex=old.find(p=>p.key===k);return ex||{key:k,lastUsed:0,cooldownUntil:0,active:true,errorCount:0,isPaid:false}})}
+function refreshKeyPool(){const stored=getStoredKeys();const old=state.keyPool||[];state.keyPool=stored.map(k=>{const ex=old.find(p=>p.key===k);return ex||{key:k,lastUsed:0,cooldownUntil:0,active:true,errorCount:0,isPaid:isPaidKey(k)}})}
 function hasActiveKey(){return state.keyPool.some(k=>k.active)}
-function getReadyKey(){const now=Date.now();const active=state.keyPool.filter(k=>k.active);if(active.length===0)return{key:null,waitMs:0};const ready=active.filter(k=>!k.cooldownUntil||k.cooldownUntil<=now);if(ready.length===0){const soonest=active.reduce((a,b)=>(a.cooldownUntil||0)<(b.cooldownUntil||0)?a:b);return{key:null,waitMs:Math.max(1000,(soonest.cooldownUntil||0)-now)}}ready.sort((a,b)=>(a.lastUsed||0)-(b.lastUsed||0));return{key:ready[0],waitMs:0}}
-async function acquireKey(label){while(true){if(state.stopRequested)throw new Error('Arrêt demandé');const{key,waitMs}=getReadyKey();if(key){key.lastUsed=Date.now();return key}if(waitMs===0)throw new Error('Aucune clé API active');debugLog('warn',label,'Toutes les clés en cooldown — attente '+Math.round(waitMs/1000)+'s');setStatus('Toutes les clés en cooldown — attente '+Math.round(waitMs/1000)+'s');await sleep(waitMs)}}
+function getReadyKey(){
+  const now=Date.now();
+  const active=state.keyPool.filter(k=>k.active);
+  if(active.length===0)return{key:null,waitMs:0};
+  const ready=active.filter(k=>!k.cooldownUntil||k.cooldownUntil<=now);
+  if(ready.length===0){
+    const soonest=active.reduce((a,b)=>(a.cooldownUntil||0)<(b.cooldownUntil||0)?a:b);
+    return{key:null,waitMs:Math.max(1000,(soonest.cooldownUntil||0)-now)};
+  }
+  // Priorité aux clés payantes
+  const paid=ready.filter(k=>k.isPaid);
+  const pool=paid.length>0?paid:ready;
+  pool.sort((a,b)=>(a.lastUsed||0)-(b.lastUsed||0));
+  return{key:pool[0],waitMs:0};
+}
+async function acquireKey(label){
+  while(true){
+    if(state.stopRequested)throw new Error('Arrêt demandé');
+    const{key,waitMs}=getReadyKey();
+    if(key){key.lastUsed=Date.now();return key}
+    if(waitMs===0)throw new Error('Aucune clé API active');
+    debugLog('warn',label,'Toutes les clés en cooldown — attente '+Math.round(waitMs/1000)+'s');
+    setStatus('Toutes les clés en cooldown — attente '+Math.round(waitMs/1000)+'s');
+    await sleep(waitMs);
+  }
+}
 
 function renderKeysStatus(){
   const el=document.getElementById('api-keys-status');
@@ -471,11 +534,11 @@ function renderKeysStatus(){
   const now=Date.now();
   el.innerHTML=state.keyPool.map((k,i)=>{
     let s;
-    if(k.isPaid)s='<span class="key-state paid">Payante</span>';
-    else if(!k.active)s='<span class="key-state dead">Inactive</span>';
+    if(!k.active)s='<span class="key-state dead">Inactive</span>';
     else if(k.cooldownUntil>now){const sec=Math.ceil((k.cooldownUntil-now)/1000);s='<span class="key-state cool">Cooldown '+sec+'s</span>'}
+    else if(k.isPaid)s='<span class="key-state paid">Payante</span>';
     else s='<span class="key-state">Active</span>';
-    return '<div class="key-row"><span class="key-id">#'+(i+1)+' · '+esc(k.key.slice(0,8))+'…'+esc(k.key.slice(-4))+'</span>'+s+'</div>';
+    return '<div class="key-row"><span class="key-id">#'+(i+1)+' · '+esc(k.key.slice(0,9))+'…'+esc(k.key.slice(-4))+'</span>'+s+'</div>';
   }).join('');
 }
 
@@ -483,79 +546,111 @@ function saveKeysFromUI(){
   const input=document.getElementById('api-keys-input');
   if(!input)return;
   const keys=input.value.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
-  const valid=keys.filter(k=>k.startsWith('sk-'));
-  const invalid=keys.filter(k=>!k.startsWith('sk-'));
-  if(invalid.length>0){if(!confirm(invalid.length+' clé(s) ne commencent pas par "sk-". Les ignorer ?'))return}
+  const valid=keys.filter(k=>isValidKeyFormat(k));
+  const invalid=keys.filter(k=>!isValidKeyFormat(k));
+  if(invalid.length>0){
+    const ex=invalid[0].slice(0,12);
+    const msg=invalid.length+' clé(s) refusée(s) — les clés doivent commencer par sk- ou cpk-.\n\nExemple de clé refusée : "'+ex+'…"\n\nContinuer avec '+valid.length+' clé(s) valide(s) ?';
+    if(!confirm(msg))return;
+  }
+  if(valid.length===0){
+    showToast('Aucune clé valide (sk- ou cpk- requis)','error',4000);
+    return;
+  }
   setStoredKeys(valid);
   refreshKeyPool();
   updateApiPanel();
-  if(valid.length===0)showToast('Aucune clé valide','warn');
-  else showToast(valid.length+' clé(s) enregistrée(s) ✓','success');
-  debugLog('success','CLÉS',valid.length+' clé(s) active(s)');
+  const paidCount=valid.filter(isPaidKey).length;
+  const freeCount=valid.length-paidCount;
+  showToast(valid.length+' clé(s) enregistrée(s) · '+paidCount+' payante(s) + '+freeCount+' gratuite(s)','success',3500);
+  debugLog('success','CLÉS',valid.length+' clé(s) actives · '+paidCount+' payante(s) · '+freeCount+' gratuite(s)');
 }
 
 async function testKeysAndModels(){
-  if(state.keyPool.length===0){showToast('Ajoutez au moins une clé','warn');return}
-  debugLog('state','TEST','Test des clés et des modèles disponibles…');
-  setStatus('Test des clés et modèles…');
-  const key=state.keyPool[0];
+  if(state.keyPool.length===0){showToast('Enregistrez d\'abord au moins une clé','warn');return}
+  debugLog('state','TEST','Test des clés et modèles disponibles…');
+  setStatus('Test en cours…');
+  // Utiliser en priorité la première clé payante
+  const testKey=state.keyPool.find(k=>k.isPaid)||state.keyPool[0];
+  debugLog('info','TEST','Clé utilisée : '+testKey.key.slice(0,9)+'… ('+(testKey.isPaid?'payante':'gratuite')+')');
   try{
-    // Test /v1/models pour lister les modèles
-    const res=await fetch(API_BASE+'/models',{method:'GET',headers:{'Authorization':'Bearer '+key.key}});
+    const res=await fetch(API_BASE+'/models',{method:'GET',headers:{'Authorization':'Bearer '+testKey.key}});
+    debugLog('response','MODELS','HTTP '+res.status);
     if(res.ok){
       const data=await res.json();
       const models=(data.data||[]).map(m=>m.id);
-      debugLog('success','MODELS','Modèles disponibles',models);
-      const hasFlash=models.some(m=>m.includes('video-2.5-flash'));
-      const hasFull=models.some(m=>m.includes('video-2.5')&&!m.includes('flash'));
-      if(hasFlash){
-        MODEL_VIDEO='agnes-video-2.5-flash';
-        key.isPaid=false;
-        document.getElementById('video-model-display').textContent='agnes-video-2.5-flash';
-        showToast('Modèle flash disponible ✓ (gratuit)','success',3500);
-      }else if(hasFull){
-        MODEL_VIDEO='agnes-video-2.5';
-        key.isPaid=true;
-        document.getElementById('video-model-display').textContent='agnes-video-2.5';
-        showToast('Modèle complet disponible ✓ (payant)','success',3500);
-      }else{
-        showToast('Aucun modèle vidéo 2.5 trouvé','error',4000);
+      state.availableModels=models;
+      debugLog('success','MODELS',models.length+' modèles disponibles',models);
+      const hasFlash=models.some(m=>m.includes('video-2.5-flash')||m.includes('video-v2.5-flash'));
+      const hasFull=models.some(m=>m.match(/video-2\.5(?!.*flash)/)||m.match(/video-v2\.5(?!.*flash)/));
+      const has25Any=models.some(m=>m.includes('video-2.5')||m.includes('video-v2.5'));
+      let detected='agnes-video-2.5-flash';
+      if(hasFull&&testKey.isPaid)detected='agnes-video-2.5';
+      else if(hasFlash)detected='agnes-video-2.5-flash';
+      else if(has25Any)detected='agnes-video-2.5';
+      // Ne pas écraser le choix utilisateur sauf en mode 'auto'
+      if(USER_MODEL_CHOICE==='auto'){
+        MODEL_VIDEO=detected;
+        document.getElementById('video-model-display').textContent=detected;
+        updateModelBadge();
       }
-      debugLog('info','MODELS','Modèle vidéo actif : '+MODEL_VIDEO);
+      const videoModels=models.filter(m=>m.toLowerCase().includes('video'));
+      showToast('Clé valide ✓ · '+videoModels.length+' modèle(s) vidéo détecté(s)','success',4000);
+      debugLog('success','TEST','Modèle recommandé : '+detected+' · modèles vidéo : '+videoModels.join(', '));
     }else{
-      debugLog('warn','MODELS','/v1/models indisponible (HTTP '+res.status+')');
-      // Fallback : tester directement le flash
-      MODEL_VIDEO='agnes-video-2.5-flash';
-      showToast('Test direct sur flash par défaut','warn');
+      const err=await res.text();
+      debugLog('error','TEST','HTTP '+res.status, err.slice(0,500));
+      if(res.status===401||res.status===403){
+        showToast('Clé refusée (HTTP '+res.status+') — vérifiez-la','error',4000);
+      }else{
+        showToast('Erreur HTTP '+res.status+' lors du test','warn',4000);
+      }
     }
-    renderKeysStatus();
     updateApiPanel();
   }catch(e){
-    debugLog('warn','TEST','Erreur test : '+e.message+' — on garde flash par défaut');
+    debugLog('error','TEST','Erreur réseau : '+e.message);
+    showToast('Test impossible : '+e.message.slice(0,60),'error',4000);
   }
   setStatus('Test terminé');
   await sleep(1500);
   setStatus(null);
 }
 
+function updateModelBadge(){
+  const badge=document.getElementById('video-model-badge');
+  if(!badge)return;
+  if(MODEL_VIDEO==='agnes-video-2.5-flash'){
+    badge.textContent='';
+    badge.className='';
+  }else if(MODEL_VIDEO==='agnes-video-2.5'){
+    badge.textContent='· payant';
+    badge.className='ml-paid';
+  }
+}
+
 function updateApiPanel(){
-  const panel=document.getElementById('api-panel');const input=document.getElementById('api-keys-input');
-  const line=document.getElementById('api-status-line');const text=document.getElementById('api-status-text');
+  const panel=document.getElementById('api-panel');
+  const input=document.getElementById('api-keys-input');
+  const line=document.getElementById('api-status-line');
+  const text=document.getElementById('api-status-text');
   if(!panel||!input||!line||!text)return;
   refreshKeyPool();
   const n=state.keyPool.length;
   const paidCount=state.keyPool.filter(k=>k.isPaid).length;
+  const freeCount=n-paidCount;
+  panel.classList.remove('ok','paid');
+  line.classList.remove('ok','paid');
   if(n>0){
-    panel.classList.add('ok');
-    if(paidCount>0)panel.classList.add('paid');
-    line.classList.add('ok');
-    text.textContent=n+' clé(s) active(s) · parallélisme vidéo : '+n+(paidCount>0?' · '+paidCount+' payante(s)':'');
+    if(paidCount>0){
+      panel.classList.add('paid');line.classList.add('paid');
+      text.textContent='✓ '+n+' clé(s) · '+paidCount+' payante(s) + '+freeCount+' gratuite(s) · parallélisme : '+n;
+    }else{
+      panel.classList.add('ok');line.classList.add('ok');
+      text.textContent='✓ '+n+' clé(s) gratuite(s) · parallélisme : '+n;
+    }
     input.value=state.keyPool.map(k=>k.key).join('\n');
   }else{
-    panel.classList.remove('ok');
-    panel.classList.remove('paid');
-    line.classList.remove('ok');
-    text.textContent='Aucune clé API enregistrée';
+    text.textContent='Aucune clé API enregistrée (sk- ou cpk-)';
     input.value='';
   }
   renderKeysStatus();
@@ -563,7 +658,7 @@ function updateApiPanel(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// API FETCH — multi-clés + backoff
+// API FETCH
 // ══════════════════════════════════════════════════════════════════
 async function apiFetch(url,options,label,maxAttempts){
   options=options||{};label=label||'API';
@@ -576,7 +671,7 @@ async function apiFetch(url,options,label,maxAttempts){
     try{keyObj=await acquireKey(label)}catch(e){throw e}
 
     const method=options.method||'GET';
-    debugLog('api','REQ '+label,method+' '+url+' · clé #'+(state.keyPool.indexOf(keyObj)+1)+' '+keyObj.key.slice(-4)+' (essai '+(attempt+1)+'/'+maxAttempts+')');
+    debugLog('api','REQ '+label,method+' '+url+' · clé #'+(state.keyPool.indexOf(keyObj)+1)+' '+keyObj.key.slice(-4)+(keyObj.isPaid?' [payante]':' [gratuite]')+' (essai '+(attempt+1)+'/'+maxAttempts+')');
 
     const headers=Object.assign({},options.headers||{},{'Authorization':'Bearer '+keyObj.key});
     const finalOptions=Object.assign({},options,{headers});
@@ -591,13 +686,11 @@ async function apiFetch(url,options,label,maxAttempts){
       debugLog('response','RÉP '+label,'HTTP '+res.status+' en '+dt+'ms · clé '+keyObj.key.slice(-4),errorText||undefined);
       if(res.ok){keyObj.errorCount=0;return res}
 
-      // Détection du modèle non trouvé → on peut tenter l'autre modèle
-      if(res.status===400||res.status===404){
-        if(errorText.includes('model_not_found')||errorText.includes('No available channel')){
-          debugLog('error','MODÈLE','Modèle '+MODEL_VIDEO+' indisponible');
-          const err=new Error('MODEL_NOT_AVAILABLE');
-          err.status=res.status;err.body=errorText;throw err;
-        }
+      // Cas modèle indisponible
+      if((res.status===400||res.status===404)&&(errorText.includes('model_not_found')||errorText.includes('No available channel'))){
+        debugLog('error','MODÈLE','Modèle '+MODEL_VIDEO+' indisponible');
+        const err=new Error('MODEL_NOT_AVAILABLE');
+        err.status=res.status;err.body=errorText;throw err;
       }
 
       if([401,403].includes(res.status)){
@@ -699,7 +792,7 @@ function decodeCompositeId(composite){
 async function createVideoTaskWithModel(prompt,imageUrl,duration,modelId){
   const body={model:modelId,prompt:sanitizeForApi(prompt),num_frames:duration,frame_rate:FRAME_RATE};
   if(imageUrl)body.image=imageUrl;
-  debugLog('ai','PROMPT VIDÉO ['+modelId+']','Envoyé ('+body.prompt.length+' chars)',body.prompt.slice(0,400)+'…');
+  debugLog('ai','PROMPT VIDÉO ['+modelId+']','Envoyé ('+body.prompt.length+' chars)');
   const res=await apiFetch(API_BASE+'/videos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},'Video',3);
   const data=await res.json();
   const compositeId=data.video_id||data.id||data.task_id;
@@ -709,31 +802,28 @@ async function createVideoTaskWithModel(prompt,imageUrl,duration,modelId){
   return {compositeId,innerId,raw:data,model:modelId};
 }
 
-// Création vidéo avec fallback automatique entre les modèles 2.5
 async function createVideoTask(prompt,imageUrl,duration){
   let lastErr=null;
-  // Tenter d'abord le modèle actif
-  try{
-    return await createVideoTaskWithModel(prompt,imageUrl,duration,MODEL_VIDEO);
-  }catch(e){
-    if(e.message==='MODEL_NOT_AVAILABLE'||e.status===400||e.status===404){
-      debugLog('warn','MODÈLE','Modèle '+MODEL_VIDEO+' indisponible → fallback');
-      lastErr=e;
-    }else throw e;
-  }
-  // Essayer les autres modèles de la liste
-  for(const m of VIDEO_MODELS){
-    if(m.id===MODEL_VIDEO)continue;
+  // Ordre de tentative : modèle actif en premier, puis les autres
+  const modelsToTry=[MODEL_VIDEO,...VIDEO_MODELS.map(m=>m.id).filter(id=>id!==MODEL_VIDEO)];
+  for(const modelId of modelsToTry){
     try{
-      debugLog('info','MODÈLE','Tentative avec '+m.id+'…');
-      const result=await createVideoTaskWithModel(prompt,imageUrl,duration,m.id);
-      MODEL_VIDEO=m.id;
-      document.getElementById('video-model-display').textContent=m.id;
-      showToast('Bascule sur '+m.id,'warn',3000);
+      debugLog('info','MODÈLE','Tentative avec '+modelId+'…');
+      const result=await createVideoTaskWithModel(prompt,imageUrl,duration,modelId);
+      if(modelId!==MODEL_VIDEO){
+        MODEL_VIDEO=modelId;
+        document.getElementById('video-model-display').textContent=modelId;
+        updateModelBadge();
+        showToast('Bascule sur '+modelId,'warn',3000);
+      }
       return result;
-    }catch(e2){
-      debugLog('warn','MODÈLE',m.id+' échoué : '+e2.message);
-      lastErr=e2;
+    }catch(e){
+      if(e.message==='MODEL_NOT_AVAILABLE'||e.status===400||e.status===404){
+        debugLog('warn','MODÈLE',modelId+' indisponible → modèle suivant');
+        lastErr=e;
+        continue;
+      }
+      throw e;
     }
   }
   throw lastErr||new Error('Aucun modèle vidéo disponible');
@@ -754,17 +844,6 @@ function buildIdCandidates(v){
   return ids.filter(x=>{if(seen.has(x.value))return false;seen.add(x.value);return true});
 }
 
-// Construction des URLs de polling avec le bon nom de modèle
-function buildPollBuilders(){
-  const modelName=MODEL_VIDEO;
-  return [
-    {name:'agnesapi',   build:(id)=>POLL_BASE+'?video_id='+encodeURIComponent(id)+'&model_name='+encodeURIComponent(modelName)},
-    {name:'v1-rest',    build:(id)=>API_BASE+'/videos/'+encodeURIComponent(id)},
-    {name:'v1-status',  build:(id)=>API_BASE+'/videos/'+encodeURIComponent(id)+'/status'},
-    {name:'v1-model',   build:(id)=>API_BASE+'/videos/'+encodeURIComponent(id)+'?model_name='+encodeURIComponent(modelName)}
-  ];
-}
-
 async function pollVideo(videoIdObj,onProgress){
   const candidates=buildIdCandidates(videoIdObj);
   if(candidates.length===0)throw new Error('Aucun ID vidéo exploitable');
@@ -772,7 +851,12 @@ async function pollVideo(videoIdObj,onProgress){
   let rem=minWait;
   while(rem>0){if(state.stopRequested)throw new Error('Arrêt demandé');onProgress('Préparation — '+rem+'s');await sleep(1000);rem--}
   let working={builder:state.workingPollUrlBuilder||null,id:null};
-  const pollBuilders=buildPollBuilders();
+  const pollBuilders=[
+    {name:'agnesapi',   build:(id)=>POLL_BASE+'?video_id='+encodeURIComponent(id)+'&model_name='+encodeURIComponent(MODEL_VIDEO)},
+    {name:'v1-rest',    build:(id)=>API_BASE+'/videos/'+encodeURIComponent(id)},
+    {name:'v1-status',  build:(id)=>API_BASE+'/videos/'+encodeURIComponent(id)+'/status'},
+    {name:'v1-model',   build:(id)=>API_BASE+'/videos/'+encodeURIComponent(id)+'?model_name='+encodeURIComponent(MODEL_VIDEO)}
+  ];
   for(let attempt=0;attempt<VIDEO_MAX_POLL_ATTEMPTS;attempt++){
     if(state.stopRequested)throw new Error('Arrêt demandé');
     if(attempt>0){const idx=Math.min(attempt-1,VIDEO_POLL_INTERVALS.length-1);let r=VIDEO_POLL_INTERVALS[idx];while(r>0){if(state.stopRequested)throw new Error('Arrêt demandé');onProgress('Création — '+r+'s');await sleep(1000);r--}}
@@ -786,7 +870,7 @@ async function pollVideo(videoIdObj,onProgress){
       try{
         const res=await apiFetch(url,{method:'GET'},'Polling',2);
         const d=await res.json();
-        if(!working.builder||!working.id){working.builder=ap.builder;working.id=ap.id;state.workingPollUrlBuilder=ap.builder;debugLog('success','POLLING','Endpoint validé : '+ap.builder.name+' · '+ap.idLabel)}
+        if(!working.builder||!working.id){working.builder=ap.builder;working.id=ap.id;state.workingPollUrlBuilder=ap.builder;debugLog('success','POLLING','Endpoint validé : '+ap.builder.name)}
         got=true;
         const status=d.status||'unknown';const progress=d.progress||0;
         onProgress('Création — '+progress+'%');
@@ -796,9 +880,9 @@ async function pollVideo(videoIdObj,onProgress){
       }catch(e){
         if(e.message==='Arrêt demandé')throw e;
         lastError=e;
-        if(e.status===404){debugLog('warn','POLLING','404 sur '+ap.builder.name+' → essaie autre endpoint');continue}
+        if(e.status===404)continue;
         if(e.status===401||e.status===403)continue;
-        debugLog('warn','POLLING','Erreur '+ap.builder.name+' : '+e.message);break;
+        debugLog('warn','POLLING','Erreur : '+e.message);break;
       }
     }
     if(!got&&lastError)debugLog('warn','POLLING','Itération '+attempt+' sans 200');
@@ -838,9 +922,9 @@ function updateButtons(){
   if(gen){
     gen.disabled=!hasKey||!hasIdea||state.isRunning;
     if(state.isRunning)gen.innerHTML='⏳ Génération en cours…<span style="display:block;font-size:.65rem;letter-spacing:.15em;color:var(--dim);margin-top:.4rem;font-weight:400;text-transform:none;">Ne fermez pas l\'onglet</span>';
-    else if(!hasKey)gen.innerHTML='🔑 Ajoutez au moins une clé API';
+    else if(!hasKey)gen.innerHTML='🔑 Ajoutez une clé API (sk- ou cpk-)';
     else if(!hasIdea)gen.innerHTML='💡 Décrivez votre idée (10 caractères min)';
-    else gen.innerHTML='▶ Générer le film<span style="display:block;font-size:.65rem;letter-spacing:.15em;color:var(--dim);margin-top:.4rem;font-weight:400;text-transform:none;">'+state.sceneCount+' scènes · '+Math.round(state.durationFrames/24)+'s · '+state.ratio+'</span>';
+    else gen.innerHTML='▶ Générer le film<span style="display:block;font-size:.65rem;letter-spacing:.15em;color:var(--dim);margin-top:.4rem;font-weight:400;text-transform:none;">'+state.sceneCount+' scènes · '+Math.round(state.durationFrames/24)+'s · '+MODEL_VIDEO+'</span>';
   }
   if(stop)stop.classList.toggle('visible',state.isRunning);
   if(play)play.disabled=!hasVideos||state.isPlayingFilm||state.isRunning;
@@ -870,6 +954,17 @@ function renderIdeaPresets(){
   row.querySelectorAll('[data-idea]').forEach(el=>{el.addEventListener('click',()=>{document.getElementById('idea-input').value=el.dataset.idea;updateButtons()})});
 }
 
+function renderModelChoice(){
+  const container=document.getElementById('model-choice');
+  if(!container)return;
+  container.querySelectorAll('.model-opt').forEach(el=>{
+    el.classList.toggle('selected',el.dataset.model===USER_MODEL_CHOICE);
+  });
+  const hint=document.getElementById('model-hint-name');
+  if(hint)hint.textContent=MODEL_VIDEO;
+  updateModelBadge();
+}
+
 function renderScript(){
   const view=document.getElementById('script-view');
   if(!view)return;
@@ -880,7 +975,7 @@ function renderScript(){
   let html='';
   html+='<div class="script-title">📖 '+esc(s.title||'Sans titre')+'</div>';
   html+='<div class="script-logline">'+esc(s.logline||'')+'</div>';
-  html+='<div class="script-meta">🎬 Style : '+esc(director.name)+'<br>🎨 Palette : '+esc(palette.label)+'<br>🎭 Personnages : '+(s.characters||[]).length+' · Scènes : '+(s.scenes||[]).length+'</div>';
+  html+='<div class="script-meta">🎬 Style : '+esc(director.name)+'<br>🎨 Palette : '+esc(palette.label)+'<br>🎭 Personnages : '+(s.characters||[]).length+' · Scènes : '+(s.scenes||[]).length+' · Modèle vidéo : '+esc(MODEL_VIDEO)+'</div>';
   (s.scenes||[]).forEach((sc,i)=>{
     const ch=sc.character||{};
     html+='<div class="script-scene">';
@@ -1221,7 +1316,7 @@ async function runPipeline(){
   }catch(e){
     if(e.message==='Arrêt demandé'){setStatus('Arrêté');await sleep(1500);setStatus(null)}
     else if(e.message==='MODEL_NOT_AVAILABLE'){
-      debugLog('error','MODÈLE','Modèle vidéo indisponible — vérifiez vos clés');
+      debugLog('error','MODÈLE','Modèle vidéo indisponible');
       setStatus('Modèle vidéo indisponible');
       showToast('Modèle vidéo indisponible — cliquez sur « Tester les clés »','error',5000);
       await sleep(3500);setStatus(null);
@@ -1347,6 +1442,28 @@ function stopFilmPlayback(){
   document.getElementById('duration-select').addEventListener('change',e=>{state.durationFrames=parseInt(e.target.value,10);updateButtons()});
   document.getElementById('ratio-select').addEventListener('change',e=>{state.ratio=e.target.value;updateButtons()});
 
+  // Choix du modèle
+  document.getElementById('model-choice').addEventListener('click',e=>{
+    const opt=e.target.closest('.model-opt');
+    if(!opt)return;
+    USER_MODEL_CHOICE=opt.dataset.model;
+    if(USER_MODEL_CHOICE==='auto'){
+      // Détection auto selon les modèles disponibles
+      if(state.availableModels.length>0){
+        const hasFull=state.availableModels.some(m=>m.match(/video-2\.5(?!.*flash)/)&&!m.includes('flash'));
+        MODEL_VIDEO=hasFull?'agnes-video-2.5':'agnes-video-2.5-flash';
+      }else{
+        MODEL_VIDEO='agnes-video-2.5-flash';
+      }
+    }else{
+      MODEL_VIDEO=USER_MODEL_CHOICE;
+    }
+    document.getElementById('video-model-display').textContent=MODEL_VIDEO;
+    renderModelChoice();
+    updateButtons();
+    debugLog('info','MODÈLE','Choix utilisateur : '+USER_MODEL_CHOICE+' → modèle actif : '+MODEL_VIDEO);
+  });
+
   document.getElementById('generate-btn').addEventListener('click',runPipeline);
   document.getElementById('stop-btn').addEventListener('click',()=>{state.stopRequested=true;stopTTS();debugLog('warn','STOP','Arrêt demandé');setStatus('Arrêt en cours…')});
 
@@ -1367,15 +1484,15 @@ function stopFilmPlayback(){
   renderDirectors();
   renderPalettes();
   renderIdeaPresets();
+  renderModelChoice();
   initTTS();
   setInterval(renderKeysStatus,1000);
   updateButtons();
 
-  debugLog('success','INIT','Ciné IA prêt (v2 — modèle vidéo 2.5 corrigé)');
-  debugLog('info','INIT','Pipeline : IDÉE → SCÉNARIO → PERSONNAGES → IMAGES → VIDÉOS → PLAYER');
-  debugLog('info','INIT','Modèle vidéo actif : '+MODEL_VIDEO+' (fallback auto vers agnes-video-2.5 complet)');
-  debugLog('info','INIT',DIRECTORS.length+' réalisateurs · '+PALETTES.length+' palettes');
-  debugLog('info','INIT','Bouton « Tester les clés » disponible pour vérifier les modèles réellement accessibles');
+  debugLog('success','INIT','Ciné IA prêt (v3 — clés sk- et cpk- + choix du modèle)');
+  debugLog('info','INIT','Clés acceptées : sk- (gratuit) et cpk- (payant)');
+  debugLog('info','INIT','Modèles vidéo : agnes-video-2.5-flash (gratuit) et agnes-video-2.5 (payant)');
+  debugLog('info','INIT','Utilisez « Tester les clés » pour détecter les modèles réellement disponibles');
 })();
 </script>
 </body>
