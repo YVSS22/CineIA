@@ -264,10 +264,12 @@ select option{background:var(--bg2);color:var(--ink)}
 <div class="row">
 <label class="label">Durée par scène</label>
 <select id="duration-select">
-<option value="121">5 secondes</option>
-<option value="145" selected>6 secondes</option>
-<option value="169">7 secondes</option>
-<option value="241">10 secondes</option>
+<option value="5">5 secondes</option>
+<option value="6" selected>6 secondes</option>
+<option value="7">7 secondes</option>
+<option value="8">8 secondes</option>
+<option value="10">10 secondes</option>
+<option value="12">12 secondes</option>
 </select>
 </div>
 <div class="row">
@@ -276,6 +278,8 @@ select option{background:var(--bg2);color:var(--ink)}
 <option value="9:16" selected>9:16 — Portrait (mobile)</option>
 <option value="16:9">16:9 — Paysage (cinéma)</option>
 <option value="1:1">1:1 — Carré (social)</option>
+<option value="3:4">3:4 — Portrait classique</option>
+<option value="4:3">4:3 — Paysage classique</option>
 </select>
 </div>
 </div></div>
@@ -359,35 +363,37 @@ select option{background:var(--bg2);color:var(--ink)}
 
 <script>
 // ══════════════════════════════════════════════════════════════════
-// CONFIGURATION — MODÈLES CORRIGÉS + SUPPORT CLÉS PAYANTES
+// CONFIGURATION — MODÈLES 2.5 CORRIGÉS
 // ══════════════════════════════════════════════════════════════════
 const API_BASE = 'https://apihub.agnes-ai.com/v1';
 const POLL_BASE = 'https://apihub.agnes-ai.com/agnesapi';
 const MODEL_TEXT = 'agnes-2.5-flash';
 const MODEL_IMAGE = 'agnes-image-2.1-flash';
 
-// Modèles vidéo disponibles
+// Modèles vidéo 2.5 — le flash est gratuit, le 2.5 complet est payant
 const VIDEO_MODELS = [
-  { id: 'agnes-video-2.5-flash', label: '2.5-flash', quality: 'flash', paid: false, desc: 'Rapide, 720P' },
+  { id: 'agnes-video-2.5-flash', label: '2.5-flash', quality: 'flash', paid: false, desc: 'Rapide, 720P uniquement' },
   { id: 'agnes-video-2.5',       label: '2.5',       quality: 'full',  paid: true,  desc: 'Complet, jusqu\'à 2K' }
 ];
-let MODEL_VIDEO = 'agnes-video-2.5-flash';    // modèle actif
-let USER_MODEL_CHOICE = 'agnes-video-2.5-flash'; // choix utilisateur (peut être 'auto')
+let MODEL_VIDEO = 'agnes-video-2.5-flash';
+let USER_MODEL_CHOICE = 'agnes-video-2.5-flash';
 
-const FRAME_RATE = 24;
 const VIDEO_FIRST_POLL_DELAY_SEC = 60;
 const VIDEO_POLL_INTERVALS = [8, 8, 12, 12, 20, 20, 25];
 const VIDEO_MAX_POLL_ATTEMPTS = 100;
 
-const API_KEYS_STORAGE = 'cine_ia_api_keys_v3';
+const API_KEYS_STORAGE = 'cine_ia_api_keys_v4';
 const DEBUG_MAX = 800;
-const SCENE_DURATION_FRAMES_DEFAULT = 145;
 
-// Préfixes de clés acceptés
+// ⚠️ Préfixes acceptés : sk- (gratuit) et cpk- (payant)
 const KEY_PREFIXES = ['sk-', 'cpk-'];
 
+// Tailles autorisées pour Flash (uniquement 720P) et pour le 2.5 complet
+const FLASH_ALLOWED_SIZES = ['720P'];
+const FULL_ALLOWED_SIZES = ['720P', '1080P', '1K', '2K'];
+
 // ══════════════════════════════════════════════════════════════════
-// CATALOGUES
+// CATALOGUES (inchangés)
 // ══════════════════════════════════════════════════════════════════
 const DIRECTORS = [
   { id:'wes-anderson', emoji:'🎨', name:'Wes Anderson', sig:'perfect bilateral symmetry, centered frontal framing, deadpan tableaux, pastel palette, meticulous set dressing' },
@@ -441,7 +447,7 @@ const state = {
   directorId: 'wes-anderson',
   paletteId: 'pink-mint',
   sceneCount: 5,
-  durationFrames: 145,
+  durationSeconds: 6,  // ⚠️ En SECONDES maintenant (plus en frames)
   ratio: '9:16',
   script: null,
   characters: [],
@@ -487,15 +493,13 @@ function legacyCopy(text,cb){const ta=document.createElement('textarea');ta.valu
 function toggleDebugCollapse(){const p=document.getElementById('debug-panel');const b=document.getElementById('debug-collapse-btn');if(!p||!b)return;debugCollapsed=!debugCollapsed;p.classList.toggle('collapsed',debugCollapsed);b.textContent=debugCollapsed?'+':'−'}
 
 // ══════════════════════════════════════════════════════════════════
-// MULTI-CLÉS API (sk- gratuit ET cpk- payant)
+// MULTI-CLÉS API (sk- et cpk-)
 // ══════════════════════════════════════════════════════════════════
 function isValidKeyFormat(k){
   if(!k||typeof k!=='string')return false;
   return KEY_PREFIXES.some(p=>k.startsWith(p));
 }
-function isPaidKey(k){
-  return k&&k.startsWith('cpk-');
-}
+function isPaidKey(k){return k&&k.startsWith('cpk-');}
 function getStoredKeys(){try{const raw=localStorage.getItem(API_KEYS_STORAGE);if(!raw)return[];const arr=JSON.parse(raw);if(!Array.isArray(arr))return[];return arr.filter(k=>typeof k==='string'&&k.trim().length>0&&isValidKeyFormat(k.trim()))}catch(e){return[]}}
 function setStoredKeys(keys){try{localStorage.setItem(API_KEYS_STORAGE,JSON.stringify(keys))}catch(e){}}
 function refreshKeyPool(){const stored=getStoredKeys();const old=state.keyPool||[];state.keyPool=stored.map(k=>{const ex=old.find(p=>p.key===k);return ex||{key:k,lastUsed:0,cooldownUntil:0,active:true,errorCount:0,isPaid:isPaidKey(k)}})}
@@ -509,7 +513,6 @@ function getReadyKey(){
     const soonest=active.reduce((a,b)=>(a.cooldownUntil||0)<(b.cooldownUntil||0)?a:b);
     return{key:null,waitMs:Math.max(1000,(soonest.cooldownUntil||0)-now)};
   }
-  // Priorité aux clés payantes
   const paid=ready.filter(k=>k.isPaid);
   const pool=paid.length>0?paid:ready;
   pool.sort((a,b)=>(a.lastUsed||0)-(b.lastUsed||0));
@@ -550,7 +553,7 @@ function saveKeysFromUI(){
   const invalid=keys.filter(k=>!isValidKeyFormat(k));
   if(invalid.length>0){
     const ex=invalid[0].slice(0,12);
-    const msg=invalid.length+' clé(s) refusée(s) — les clés doivent commencer par sk- ou cpk-.\n\nExemple de clé refusée : "'+ex+'…"\n\nContinuer avec '+valid.length+' clé(s) valide(s) ?';
+    const msg=invalid.length+' clé(s) refusée(s) — les clés doivent commencer par sk- ou cpk-.\n\nExemple refusé : "'+ex+'…"\n\nContinuer avec '+valid.length+' clé(s) valide(s) ?';
     if(!confirm(msg))return;
   }
   if(valid.length===0){
@@ -570,7 +573,6 @@ async function testKeysAndModels(){
   if(state.keyPool.length===0){showToast('Enregistrez d\'abord au moins une clé','warn');return}
   debugLog('state','TEST','Test des clés et modèles disponibles…');
   setStatus('Test en cours…');
-  // Utiliser en priorité la première clé payante
   const testKey=state.keyPool.find(k=>k.isPaid)||state.keyPool[0];
   debugLog('info','TEST','Clé utilisée : '+testKey.key.slice(0,9)+'… ('+(testKey.isPaid?'payante':'gratuite')+')');
   try{
@@ -581,25 +583,22 @@ async function testKeysAndModels(){
       const models=(data.data||[]).map(m=>m.id);
       state.availableModels=models;
       debugLog('success','MODELS',models.length+' modèles disponibles',models);
-      const hasFlash=models.some(m=>m.includes('video-2.5-flash')||m.includes('video-v2.5-flash'));
+      const hasFlash=models.some(m=>m.includes('video-2.5-flash'));
       const hasFull=models.some(m=>m.match(/video-2\.5(?!.*flash)/)||m.match(/video-v2\.5(?!.*flash)/));
-      const has25Any=models.some(m=>m.includes('video-2.5')||m.includes('video-v2.5'));
       let detected='agnes-video-2.5-flash';
       if(hasFull&&testKey.isPaid)detected='agnes-video-2.5';
       else if(hasFlash)detected='agnes-video-2.5-flash';
-      else if(has25Any)detected='agnes-video-2.5';
-      // Ne pas écraser le choix utilisateur sauf en mode 'auto'
       if(USER_MODEL_CHOICE==='auto'){
         MODEL_VIDEO=detected;
         document.getElementById('video-model-display').textContent=detected;
         updateModelBadge();
       }
       const videoModels=models.filter(m=>m.toLowerCase().includes('video'));
-      showToast('Clé valide ✓ · '+videoModels.length+' modèle(s) vidéo détecté(s)','success',4000);
-      debugLog('success','TEST','Modèle recommandé : '+detected+' · modèles vidéo : '+videoModels.join(', '));
+      showToast('Clé valide ✓ · '+videoModels.length+' modèle(s) vidéo','success',4000);
+      debugLog('success','TEST','Recommandé : '+detected+' · vidéo : '+videoModels.join(', '));
     }else{
       const err=await res.text();
-      debugLog('error','TEST','HTTP '+res.status, err.slice(0,500));
+      debugLog('error','TEST','HTTP '+res.status,err.slice(0,500));
       if(res.status===401||res.status===403){
         showToast('Clé refusée (HTTP '+res.status+') — vérifiez-la','error',4000);
       }else{
@@ -686,7 +685,7 @@ async function apiFetch(url,options,label,maxAttempts){
       debugLog('response','RÉP '+label,'HTTP '+res.status+' en '+dt+'ms · clé '+keyObj.key.slice(-4),errorText||undefined);
       if(res.ok){keyObj.errorCount=0;return res}
 
-      // Cas modèle indisponible
+      // Cas modèle indisponible → permettre la bascule
       if((res.status===400||res.status===404)&&(errorText.includes('model_not_found')||errorText.includes('No available channel'))){
         debugLog('error','MODÈLE','Modèle '+MODEL_VIDEO+' indisponible');
         const err=new Error('MODEL_NOT_AVAILABLE');
@@ -733,7 +732,7 @@ async function apiFetch(url,options,label,maxAttempts){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// JSON PARSER — 5 stratégies
+// JSON PARSER
 // ══════════════════════════════════════════════════════════════════
 function balanceJson(text){let ob=0,ok=0,ins=false,esc=false;for(let i=0;i<text.length;i++){const ch=text[i];if(esc){esc=false;continue}if(ch==='\\'){esc=true;continue}if(ch==='"'){ins=!ins;continue}if(ins)continue;if(ch==='{')ob++;else if(ch==='}')ob--;else if(ch==='[')ok++;else if(ch===']')ok--}let r=text;if(ins)r+='"';while(ok>0){r+=']';ok--}while(ob>0){r+='}';ob--}return r}
 function fixUnquotedKeys(text){let out='';let i=0;const n=text.length;let ins=false,esc=false;const stack=[];let last='{';while(i<n){const ch=text[i];if(esc){out+=ch;esc=false;i++;continue}if(ch==='\\'){out+=ch;esc=true;i++;continue}if(ins){out+=ch;if(ch==='"')ins=false;i++;continue}if(ch==='"'){ins=true;out+=ch;i++;continue}if(ch==='{'){stack.push('{');last='{';out+=ch;i++;continue}if(ch==='['){stack.push('[');last='[';out+=ch;i++;continue}if(ch==='}'){if(stack.length)stack.pop();last='}';out+=ch;i++;continue}if(ch===']'){if(stack.length)stack.pop();last=']';out+=ch;i++;continue}if(ch===','){last=',';out+=ch;i++;continue}if(ch===':'){last=':';out+=ch;i++;continue}if(/\s/.test(ch)){out+=ch;i++;continue}const top=stack[stack.length-1];if((last==='{'||last===',')&&top==='{'&&/[A-Za-z_$]/.test(ch)){let j=i;while(j<n&&/[A-Za-z0-9_$]/.test(text[j]))j++;let k=j;while(k<n&&/\s/.test(text[k]))k++;if(text[k]===':'){out+='"'+text.slice(i,j)+'"';i=j;continue}}out+=ch;i++}return out}
@@ -768,7 +767,7 @@ function extractJson(text){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// IMAGE + VIDÉO
+// IMAGE + VIDÉO (nouvelle API 2.5)
 // ══════════════════════════════════════════════════════════════════
 async function generateImage(prompt) {
   const body={model:MODEL_IMAGE,prompt:sanitizeForApi(prompt),n:1,size:'1K',ratio:'1:1'};
@@ -789,27 +788,55 @@ function decodeCompositeId(composite){
   return null;
 }
 
-async function createVideoTaskWithModel(prompt,imageUrl,duration,modelId){
-  const body={model:modelId,prompt:sanitizeForApi(prompt),num_frames:duration,frame_rate:FRAME_RATE};
-  if(imageUrl)body.image=imageUrl;
-  debugLog('ai','PROMPT VIDÉO ['+modelId+']','Envoyé ('+body.prompt.length+' chars)');
-  const res=await apiFetch(API_BASE+'/videos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},'Video',3);
+/**
+ * ⚠️ FONCTION CLÉ — Format 2.5 (nouveau)
+ * Pas de num_frames, pas de "image", pas de frame_rate
+ * On utilise : seconds, mode, size, aspect_ratio, first_frame/last_frame
+ */
+async function createVideoTaskWithModel(prompt,imageUrl,durationSeconds,modelId){
+  // Déterminer la taille selon le modèle
+  const size = modelId === 'agnes-video-2.5-flash' ? '720P' : '720P'; // le 2.5 peut prendre 720P par défaut
+  
+  // Construire le body au format 2.5
+  const body = {
+    model: modelId,
+    prompt: sanitizeForApi(prompt),
+    seconds: String(durationSeconds),  // ⚠️ Chaîne de caractères entre "4" et "12"
+    size: size,
+    aspect_ratio: state.ratio,
+    mode: 'text'  // text par défaut, keyframe si image
+  };
+
+  // Si une image d'ancrage est fournie → mode keyframe
+  if(imageUrl){
+    body.mode = 'keyframe';
+    body.first_frame = imageUrl;  // ⚠️ "first_frame" remplace "image"
+  }
+
+  debugLog('ai','PROMPT VIDÉO ['+modelId+']','Envoyé · ' + durationSeconds + 's · ' + size + ' · ' + state.ratio + ' · mode=' + body.mode);
+  const res=await apiFetch(API_BASE+'/videos',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  },'Video',3);
+
   const data=await res.json();
+  debugLog('response','VIDÉO CRÉÉE ['+modelId+']','Réponse complète',data);
+  
   const compositeId=data.video_id||data.id||data.task_id;
-  if(!compositeId)throw new Error('Pas de video_id');
+  if(!compositeId)throw new Error('Pas de video_id dans la réponse');
   const innerId=decodeCompositeId(compositeId);
   debugLog('info','VIDÉO ID ['+modelId+']','composite='+compositeId.slice(0,40)+'… · inner='+(innerId||'—'));
   return {compositeId,innerId,raw:data,model:modelId};
 }
 
-async function createVideoTask(prompt,imageUrl,duration){
+async function createVideoTask(prompt,imageUrl,durationSeconds){
   let lastErr=null;
-  // Ordre de tentative : modèle actif en premier, puis les autres
   const modelsToTry=[MODEL_VIDEO,...VIDEO_MODELS.map(m=>m.id).filter(id=>id!==MODEL_VIDEO)];
   for(const modelId of modelsToTry){
     try{
       debugLog('info','MODÈLE','Tentative avec '+modelId+'…');
-      const result=await createVideoTaskWithModel(prompt,imageUrl,duration,modelId);
+      const result=await createVideoTaskWithModel(prompt,imageUrl,durationSeconds,modelId);
       if(modelId!==MODEL_VIDEO){
         MODEL_VIDEO=modelId;
         document.getElementById('video-model-display').textContent=modelId;
@@ -851,12 +878,15 @@ async function pollVideo(videoIdObj,onProgress){
   let rem=minWait;
   while(rem>0){if(state.stopRequested)throw new Error('Arrêt demandé');onProgress('Préparation — '+rem+'s');await sleep(1000);rem--}
   let working={builder:state.workingPollUrlBuilder||null,id:null};
+  
+  // URLs de polling — le model_name est OBLIGATOIRE pour les modes keyframe/reference
   const pollBuilders=[
     {name:'agnesapi',   build:(id)=>POLL_BASE+'?video_id='+encodeURIComponent(id)+'&model_name='+encodeURIComponent(MODEL_VIDEO)},
     {name:'v1-rest',    build:(id)=>API_BASE+'/videos/'+encodeURIComponent(id)},
     {name:'v1-status',  build:(id)=>API_BASE+'/videos/'+encodeURIComponent(id)+'/status'},
     {name:'v1-model',   build:(id)=>API_BASE+'/videos/'+encodeURIComponent(id)+'?model_name='+encodeURIComponent(MODEL_VIDEO)}
   ];
+  
   for(let attempt=0;attempt<VIDEO_MAX_POLL_ATTEMPTS;attempt++){
     if(state.stopRequested)throw new Error('Arrêt demandé');
     if(attempt>0){const idx=Math.min(attempt-1,VIDEO_POLL_INTERVALS.length-1);let r=VIDEO_POLL_INTERVALS[idx];while(r>0){if(state.stopRequested)throw new Error('Arrêt demandé');onProgress('Création — '+r+'s');await sleep(1000);r--}}
@@ -874,15 +904,21 @@ async function pollVideo(videoIdObj,onProgress){
         got=true;
         const status=d.status||'unknown';const progress=d.progress||0;
         onProgress('Création — '+progress+'%');
-        if(status==='completed'||status==='succeeded'||status==='done'){const u=(d.metadata&&d.metadata.url)||d.url||(d.output&&d.output.url);if(!u)throw new Error('Terminé sans URL');debugLog('success','POLLING','Vidéo prête');return u}
+        if(status==='completed'||status==='succeeded'||status==='done'){
+          // ⚠️ Le champ est "url" (top-level) pour le modèle 2.5
+          const u=d.url||(d.metadata&&d.metadata.url)||(d.output&&d.output.url);
+          if(!u)throw new Error('Terminé sans URL');
+          debugLog('success','POLLING','Vidéo prête : '+u.slice(0,80));
+          return u;
+        }
         if(status==='failed'||status==='error'||status==='cancelled')throw new Error('Échec ('+status+')');
         break;
       }catch(e){
         if(e.message==='Arrêt demandé')throw e;
         lastError=e;
-        if(e.status===404)continue;
+        if(e.status===404){debugLog('warn','POLLING','404 sur '+ap.builder.name+' → essaie autre endpoint');continue}
         if(e.status===401||e.status===403)continue;
-        debugLog('warn','POLLING','Erreur : '+e.message);break;
+        debugLog('warn','POLLING','Erreur '+ap.builder.name+' : '+e.message);break;
       }
     }
     if(!got&&lastError)debugLog('warn','POLLING','Itération '+attempt+' sans 200');
@@ -924,7 +960,7 @@ function updateButtons(){
     if(state.isRunning)gen.innerHTML='⏳ Génération en cours…<span style="display:block;font-size:.65rem;letter-spacing:.15em;color:var(--dim);margin-top:.4rem;font-weight:400;text-transform:none;">Ne fermez pas l\'onglet</span>';
     else if(!hasKey)gen.innerHTML='🔑 Ajoutez une clé API (sk- ou cpk-)';
     else if(!hasIdea)gen.innerHTML='💡 Décrivez votre idée (10 caractères min)';
-    else gen.innerHTML='▶ Générer le film<span style="display:block;font-size:.65rem;letter-spacing:.15em;color:var(--dim);margin-top:.4rem;font-weight:400;text-transform:none;">'+state.sceneCount+' scènes · '+Math.round(state.durationFrames/24)+'s · '+MODEL_VIDEO+'</span>';
+    else gen.innerHTML='▶ Générer le film<span style="display:block;font-size:.65rem;letter-spacing:.15em;color:var(--dim);margin-top:.4rem;font-weight:400;text-transform:none;">'+state.sceneCount+' scènes · '+state.durationSeconds+'s · '+MODEL_VIDEO+'</span>';
   }
   if(stop)stop.classList.toggle('visible',state.isRunning);
   if(play)play.disabled=!hasVideos||state.isPlayingFilm||state.isRunning;
@@ -1062,7 +1098,7 @@ function buildScriptPrompt(){
   const d=DIRECTORS.find(x=>x.id===state.directorId)||DIRECTORS[0];
   const p=PALETTES.find(x=>x.id===state.paletteId)||PALETTES[0];
   const n=state.sceneCount;
-  const dur=Math.round(state.durationFrames/24);
+  const dur=state.durationSeconds;
   return [
     'You are a screenwriter and visual director. Create a short cinematic film.',
     '',
@@ -1120,7 +1156,7 @@ function buildVideoPromptFromScene(scene,script){
   let montageBlock='MONTAGE — '+shots.length+' SHOTS WITH HARD CUTS:\n'+shots.map((sh,i)=>{const c=sh.camera||{};return '  SHOT '+(i+1)+' — '+(c.type||'symmetric shot')+' / '+(c.movement||'locked-off')+' / '+(c.framing||'centered')+' : '+(sh.description||'')}).join('\n');
   if(shots.length===0)montageBlock='MONTAGE — 3 SHOTS WITH HARD CUTS: wide → medium → close-up.';
   return [
-    'CINEMATIC SHORT FILM — '+Math.round(state.durationFrames/24)+'-SECOND SCENE.',
+    'CINEMATIC SHORT FILM — '+state.durationSeconds+'-SECOND SCENE.',
     'STYLE: '+d.name+' — '+d.sig,
     'PALETTE: '+p.label+' → '+p.colors.join(', ')+'. Every color from this palette.',
     '',
@@ -1220,7 +1256,7 @@ async function generateVideos(script){
   document.getElementById('section-videos').classList.add('open');
 
   const workerCount=Math.max(1,state.keyPool.filter(k=>k.active).length);
-  debugLog('info','VIDEOS',workerCount+' worker(s) parallèle(s) pour '+scenes.length+' scènes · modèle : '+MODEL_VIDEO);
+  debugLog('info','VIDEOS',workerCount+' worker(s) parallèle(s) pour '+scenes.length+' scènes · modèle : '+MODEL_VIDEO+' · '+state.durationSeconds+'s chacune');
 
   const queue=scenes.map((scene,index)=>({scene,index}));
   const workers=[];
@@ -1255,11 +1291,11 @@ async function generateOneVideo(scene,index,script,workerId){
 
     let videoIdObj=null;
     try{
-      videoIdObj=await createVideoTask(prompt,anchorUrl,state.durationFrames);
+      videoIdObj=await createVideoTask(prompt,anchorUrl,state.durationSeconds);
     }catch(e){
       if((e.status===400||/image/i.test(e.message||''))&&anchorUrl){
         debugLog('warn','VIDÉO','Anchor refusé → retry sans image');
-        videoIdObj=await createVideoTask(prompt,null,state.durationFrames);
+        videoIdObj=await createVideoTask(prompt,null,state.durationSeconds);
       }else throw e;
     }
 
@@ -1439,7 +1475,7 @@ function stopFilmPlayback(){
 
   document.getElementById('idea-input').addEventListener('input',updateButtons);
   document.getElementById('scene-count-select').addEventListener('change',e=>{state.sceneCount=parseInt(e.target.value,10);updateButtons()});
-  document.getElementById('duration-select').addEventListener('change',e=>{state.durationFrames=parseInt(e.target.value,10);updateButtons()});
+  document.getElementById('duration-select').addEventListener('change',e=>{state.durationSeconds=parseInt(e.target.value,10);updateButtons()});
   document.getElementById('ratio-select').addEventListener('change',e=>{state.ratio=e.target.value;updateButtons()});
 
   // Choix du modèle
@@ -1448,7 +1484,6 @@ function stopFilmPlayback(){
     if(!opt)return;
     USER_MODEL_CHOICE=opt.dataset.model;
     if(USER_MODEL_CHOICE==='auto'){
-      // Détection auto selon les modèles disponibles
       if(state.availableModels.length>0){
         const hasFull=state.availableModels.some(m=>m.match(/video-2\.5(?!.*flash)/)&&!m.includes('flash'));
         MODEL_VIDEO=hasFull?'agnes-video-2.5':'agnes-video-2.5-flash';
@@ -1489,10 +1524,10 @@ function stopFilmPlayback(){
   setInterval(renderKeysStatus,1000);
   updateButtons();
 
-  debugLog('success','INIT','Ciné IA prêt (v3 — clés sk- et cpk- + choix du modèle)');
-  debugLog('info','INIT','Clés acceptées : sk- (gratuit) et cpk- (payant)');
-  debugLog('info','INIT','Modèles vidéo : agnes-video-2.5-flash (gratuit) et agnes-video-2.5 (payant)');
-  debugLog('info','INIT','Utilisez « Tester les clés » pour détecter les modèles réellement disponibles');
+  debugLog('success','INIT','Ciné IA v5 — MODÈLE 2.5 CORRIGÉ + clés sk- et cpk-');
+  debugLog('info','INIT','Format vidéo 2.5 : seconds (4-12), mode text/keyframe, size 720P (flash)');
+  debugLog('info','INIT','Champs obsolètes SUPPRIMÉS : num_frames, frame_rate, image, height, width');
+  debugLog('info','INIT','Utilisez « Tester les clés » pour détecter les modèles disponibles');
 })();
 </script>
 </body>
