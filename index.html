@@ -123,6 +123,24 @@
 <option value="4:3">4:3 — Paysage classique</option>
 </select>
 </div>
+<div class="row">
+<label class="label">🎵 Musique de fond</label>
+<select id="music-select">
+<option value="">Sans musique</option>
+<option value="ambiant">Ambiant</option>
+<option value="mysterieux">Mystérieux</option>
+<option value="doux">Doux</option>
+</select>
+</div>
+<div class="row">
+<label class="label">💬 Sous-titres (français)</label>
+<div class="toggle-row"><input type="checkbox" id="subtitles-toggle"><label for="subtitles-toggle">Incruster les sous-titres dans le film final</label></div>
+</div>
+<div class="row">
+<label class="label">🕺 Référence de mouvement (optionnel)</label>
+<input type="file" id="motion-ref-input" accept="video/*">
+<div class="hint">Imite le geste/mouvement de cette vidéo. Nécessite le modèle 2.5 complet (le flash ne la prend pas en charge).</div>
+</div>
 </div></div>
 </div>
 
@@ -159,6 +177,16 @@
 </div>
 <div class="section-body"><div class="section-content">
 <div class="videos-grid" id="videos-grid"></div>
+</div></div>
+</div>
+
+<div class="section hidden" id="section-final">
+<div class="section-header" data-toggle="section-final">
+<span class="section-title">🎞️ Film final <span class="badge" id="final-badge">—</span></span>
+<span class="chevron">▼</span>
+</div>
+<div class="section-body"><div class="section-content">
+<div class="final-film-body" id="final-film-body"></div>
 </div></div>
 </div>
 

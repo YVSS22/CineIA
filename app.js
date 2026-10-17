@@ -26,6 +26,9 @@ const KEY_PREFIXES = ['sk-', 'cpk-'];
 
 // (tailles vidéo : flash = 720P uniquement, modèle 2.5 complet = jusqu'à 1080P/2K)
 
+// Backend CineIA (TTS edge-tts, musique, montage ffmpeg). Même origine si servi depuis le VPS.
+const BACKEND_URL = (location.hostname==='187.7.65.97') ? '' : 'http://187.7.65.97:8648';
+
 // ══════════════════════════════════════════════════════════════════
 // CATALOGUES (inchangés)
 // ══════════════════════════════════════════════════════════════════
@@ -91,7 +94,12 @@ const state = {
   voiceEnabled: true,
   currentUtterance: null,
   workingPollUrlBuilder: null,
-  availableModels: []
+  availableModels: [],
+  musicId: null,          // piste de musique de fond (null = sans)
+  subtitles: false,       // sous-titres incrustés (optionnel)
+  motionRefUrl: null,     // vidéo de référence de mouvement (optionnel)
+  finalFilmUrl: null,     // film final monté (concat + musique + sous-titres)
+  finalFilmBuilding: false
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -407,6 +415,22 @@ async function generateImage(prompt) {
   throw new Error('Format inconnu');
 }
 
+// ── Voix fixe par personnage (c1→homme, c2→femme, alternance) ──
+function voiceForCharacter(idx){return (idx%2===0)?'homme':'femme';}
+
+// ── TTS via le backend (edge-tts) → data URI + durée réelle ──
+async function ttsAudio(text, voice){
+  const res=await fetch(BACKEND_URL+'/api/tts',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:sanitizeForApi(text),voice:voice||'homme'})
+  });
+  if(!res.ok)throw new Error('TTS échec ('+res.status+')');
+  const d=await res.json();
+  if(!d.audio_b64)throw new Error('TTS sans audio');
+  return {dataUri:'data:'+(d.mime||'audio/mpeg')+';base64,'+d.audio_b64, duration:(d.duration||4)};
+}
+
 function decodeCompositeId(composite){
   if(!composite||typeof composite!=='string')return null;
   if(!composite.startsWith('video_'))return null;
@@ -420,7 +444,7 @@ function decodeCompositeId(composite){
  * Pas de num_frames, pas de "image", pas de frame_rate
  * On utilise : seconds, mode, size, aspect_ratio, first_frame/last_frame
  */
-async function createVideoTaskWithModel(prompt,imageUrl,durationSeconds,modelId){
+async function createVideoTaskWithModel(prompt,imageUrl,audioDataUri,durationSeconds,modelId){
   // Déterminer la taille selon le modèle
   const size = modelId === 'agnes-video-2.5-flash' ? '720P' : '1080P';
   
@@ -431,16 +455,22 @@ async function createVideoTaskWithModel(prompt,imageUrl,durationSeconds,modelId)
     seconds: String(durationSeconds),  // ⚠️ Chaîne de caractères entre "4" et "12"
     size: size,
     aspect_ratio: state.ratio,
-    mode: 'text'  // text par défaut, keyframe si image
+    mode: 'text'  // text par défaut, keyframe si image, reference si lip sync
   };
 
-  // Si une image d'ancrage est fournie → mode keyframe
-  if(imageUrl){
+  if(audioDataUri){
+    // LIP SYNC native : reference + images (visage) + audios (voix)
+    body.mode = 'reference';
+    body.audios = [audioDataUri];
+    if(imageUrl)body.images = [imageUrl];
+    if(state.motionRefUrl)body.videos = [state.motionRefUrl];
+  } else if(imageUrl){
+    // Ancrage visuel → mode keyframe
     body.mode = 'keyframe';
     body.first_frame = imageUrl;  // ⚠️ "first_frame" remplace "image"
   }
 
-  debugLog('ai','PROMPT VIDÉO ['+modelId+']','Envoyé · ' + durationSeconds + 's · ' + size + ' · ' + state.ratio + ' · mode=' + body.mode);
+  debugLog('ai','PROMPT VIDÉO ['+modelId+']','Envoyé · ' + durationSeconds + 's · ' + size + ' · ' + state.ratio + ' · mode=' + body.mode + (audioDataUri?' · LIP-SYNC':''));
   const res=await apiFetch(API_BASE+'/videos',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -457,13 +487,13 @@ async function createVideoTaskWithModel(prompt,imageUrl,durationSeconds,modelId)
   return {compositeId,innerId,raw:data,model:modelId};
 }
 
-async function createVideoTask(prompt,imageUrl,durationSeconds){
+async function createVideoTask(prompt,imageUrl,audioDataUri,durationSeconds){
   let lastErr=null;
   const modelsToTry=[MODEL_VIDEO,...VIDEO_MODELS.map(m=>m.id).filter(id=>id!==MODEL_VIDEO)];
   for(const modelId of modelsToTry){
     try{
       debugLog('info','MODÈLE','Tentative avec '+modelId+'…');
-      const result=await createVideoTaskWithModel(prompt,imageUrl,durationSeconds,modelId);
+      const result=await createVideoTaskWithModel(prompt,imageUrl,audioDataUri,durationSeconds,modelId);
       if(modelId!==MODEL_VIDEO){
         MODEL_VIDEO=modelId;
         document.getElementById('video-model-display').textContent=modelId;
@@ -700,12 +730,18 @@ function renderVideos(){
         const dl=document.createElement('a');
         dl.className='scene-download';dl.href=v.url;dl.target='_blank';dl.rel='noopener noreferrer';dl.setAttribute('download','scene-'+(i+1)+'.mp4');dl.textContent='⬇ Télécharger';
         bodyEl.appendChild(dl);
+        const rg=document.createElement('button');
+        rg.type='button';rg.className='scene-regen';rg.textContent='↻ Régénérer';rg.onclick=()=>regenerateScene(i);
+        bodyEl.appendChild(rg);
         card.dataset.url=v.url;
       }
     }else if(v.status==='error'){
       if(card.dataset.status!=='error'){
         statusEl.innerHTML='<span style="color:var(--err);">✕</span>';
         bodyEl.innerHTML='<div class="scene-placeholder" style="color:var(--err);">Erreur : '+esc(v.error||'inconnue')+'</div>';
+        const rg=document.createElement('button');
+        rg.type='button';rg.className='scene-regen';rg.textContent='↻ Régénérer';rg.onclick=()=>regenerateScene(i);
+        bodyEl.appendChild(rg);
       }
     }else{
       statusEl.innerHTML='<span class="spinner-mini"></span>';
@@ -905,7 +941,7 @@ async function generateOneVideo(scene,index,script,workerId){
   const prompt=buildVideoPromptFromScene(scene,script);
   state.videos[index].status='loading';
   state.videos[index].prompt=prompt;
-  state.videos[index].progress='Initialisation…';
+  state.videos[index].progress='Voix…';
   renderVideos();
 
   const ch=(script.characters||[]).find(c=>c.id===scene.character_id)||{};
@@ -913,29 +949,109 @@ async function generateOneVideo(scene,index,script,workerId){
   debugLog('info','W'+(workerId+1),'Scène '+(index+1)+' ['+(ch.name||'?')+'] : '+(line?('« '+line.slice(0,40)+'… »'):'(pas de dialogue)'));
 
   try{
-    const charImg=state.characters.find(c=>c.id===scene.character_id&&c.status==='done');
-    const anchorUrl=charImg?charImg.url:null;
+    const charState=state.characters.find(c=>c.id===scene.character_id&&c.status==='done');
+    const anchorUrl=charState?charState.url:null;
+    const charIdx=Math.max(0,(script.characters||[]).findIndex(c=>c.id===scene.character_id));
+    const voice=voiceForCharacter(charIdx);
 
+    // 1. voix (TTS edge-tts) + durée réelle du dialogue
+    let audioDataUri=null, durationSeconds=state.durationSeconds;
+    if(line){
+      const tts=await ttsAudio(line,voice);
+      audioDataUri=tts.dataUri;
+      durationSeconds=Math.max(4,Math.min(12,Math.ceil(tts.duration)));
+      state.videos[index].progress='Voix ✓ · '+durationSeconds+'s';
+      renderVideos();
+    }
+
+    // 2. créer la tâche vidéo (lip sync si audio)
     let videoIdObj=null;
     try{
-      videoIdObj=await createVideoTask(prompt,anchorUrl,state.durationSeconds);
+      videoIdObj=await createVideoTask(prompt,anchorUrl,audioDataUri,durationSeconds);
     }catch(e){
-      if((e.status===400||/image/i.test(e.message||''))&&anchorUrl){
-        debugLog('warn','VIDÉO','Anchor refusé → retry sans image');
-        videoIdObj=await createVideoTask(prompt,null,state.durationSeconds);
+      if((e.status===400||/image|audio|video/i.test(e.message||''))&&(anchorUrl||audioDataUri)){
+        debugLog('warn','VIDÉO','Référence refusée → retry en mode simple');
+        videoIdObj=await createVideoTask(prompt,null,null,durationSeconds);
       }else throw e;
     }
 
     const videoUrl=await pollVideo(videoIdObj,(prog)=>{state.videos[index].progress=prog;renderVideos()});
-    state.videos[index]={status:'done',url:videoUrl,prompt};
+    state.videos[index]={status:'done',url:videoUrl,prompt,text:line,duration:durationSeconds};
     renderVideos();
-    debugLog('success','W'+(workerId+1),'Scène '+(index+1)+' ✓');
+    debugLog('success','W'+(workerId+1),'Scène '+(index+1)+' ✓ (lip-sync '+(audioDataUri?'ON':'OFF')+')');
   }catch(e){
     if(e.message==='Arrêt demandé')return;
     state.videos[index]={status:'error',url:null,prompt,error:e.message};
     renderVideos();
     debugLog('error','W'+(workerId+1),'Scène '+(index+1)+' : '+e.message);
   }
+}
+
+async function regenerateScene(index){
+  const script=state.script;
+  if(!script||!script.scenes||!script.scenes[index])return;
+  const v=state.videos[index];
+  if(v&&v.status==='loading')return;
+  v.status='loading';v.progress='Régénération…';v.error=null;
+  renderVideos();
+  await generateOneVideo(script.scenes[index],index,script,0);
+}
+
+function renderFinalFilm(){
+  const el=document.getElementById('final-film-body');
+  const badge=document.getElementById('final-badge');
+  if(!el)return;
+  if(state.finalFilmBuilding){
+    el.innerHTML='<div class="scene-placeholder"><div class="spinner-mini"></div><span>Montage du film final…</span></div>';
+    if(badge)badge.textContent='…';
+    return;
+  }
+  if(state.finalFilmUrl){
+    el.innerHTML='';
+    const video=document.createElement('video');
+    video.src=state.finalFilmUrl;video.controls=true;video.preload='metadata';video.setAttribute('playsinline','');
+    el.appendChild(video);
+    const dl=document.createElement('a');
+    dl.className='scene-download';dl.href=state.finalFilmUrl;dl.target='_blank';dl.rel='noopener noreferrer';dl.setAttribute('download','film-final.mp4');dl.textContent='⬇ Télécharger le film';
+    el.appendChild(dl);
+    if(badge)badge.textContent='✓';
+  }else{
+    el.innerHTML='<div class="scene-placeholder">Le film final (toutes les scènes enchaînées) apparaîtra ici.</div>';
+    if(badge)badge.textContent='—';
+  }
+}
+
+async function buildFinalFilm(){
+  const done=state.videos.filter(v=>v.status==='done'&&v.url);
+  if(done.length===0)return;
+  if(done.length<2&&!state.musicId&&!state.subtitles)return;  // rien à monter
+  state.finalFilmBuilding=true;
+  document.getElementById('section-final').classList.remove('hidden');
+  document.getElementById('section-final').classList.add('open');
+  renderFinalFilm();
+  setStatus('Montage du film final…');
+  try{
+    const scenes=done.map(v=>({url:v.url,text:v.text||''}));
+    const res=await fetch(BACKEND_URL+'/api/montage',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({scenes:scenes,music_id:state.musicId,subtitles:state.subtitles})
+    });
+    if(!res.ok)throw new Error('Montage échec ('+res.status+')');
+    const d=await res.json();
+    state.finalFilmUrl=BACKEND_URL+d.video_url;
+    renderFinalFilm();
+    debugLog('success','MONTAGE','Film final prêt · '+Math.round(d.duration)+'s');
+    showToast('Film final prêt !','success');
+  }catch(e){
+    state.finalFilmUrl=null;
+    renderFinalFilm();
+    debugLog('error','MONTAGE',e.message);
+    showToast('Montage impossible : '+e.message,'error',4000);
+  }
+  state.finalFilmBuilding=false;
+  renderFinalFilm();
+  setStatus(null);
 }
 
 async function runPipeline(){
@@ -951,10 +1067,13 @@ async function runPipeline(){
   state.characters=[];
   state.videos=[];
   state.workingPollUrlBuilder=null;
+  state.finalFilmUrl=null;
+  state.finalFilmBuilding=false;
   document.getElementById('section-script').classList.add('hidden');
   document.getElementById('section-characters').classList.add('hidden');
   document.getElementById('section-videos').classList.add('hidden');
   document.getElementById('section-player').classList.add('hidden');
+  document.getElementById('section-final').classList.add('hidden');
   document.getElementById('script-view').innerHTML='';
   document.getElementById('characters-grid').innerHTML='';
   document.getElementById('videos-grid').innerHTML='';
@@ -969,6 +1088,7 @@ async function runPipeline(){
     if(state.stopRequested)throw new Error('Arrêt demandé');
     await generateVideos(script);
     if(state.stopRequested)throw new Error('Arrêt demandé');
+    await buildFinalFilm();
     document.getElementById('section-player').classList.remove('hidden');
     document.getElementById('section-player').classList.add('open');
     const elapsed=((Date.now()-t0)/1000).toFixed(0);
@@ -1136,6 +1256,18 @@ function stopFilmPlayback(){
 
   document.getElementById('voice-toggle').addEventListener('change',e=>{state.voiceEnabled=e.target.checked;if(!state.voiceEnabled)stopTTS()});
 
+  // Musique + sous-titres + référence de mouvement
+  document.getElementById('music-select').addEventListener('change',e=>{state.musicId=e.target.value||null;debugLog('info','MUSIQUE','Piste : '+(state.musicId||'aucune'))});
+  document.getElementById('subtitles-toggle').addEventListener('change',e=>{state.subtitles=e.target.checked;debugLog('info','SST','Sous-titres : '+(state.subtitles?'ON':'OFF'))});
+  document.getElementById('motion-ref-input').addEventListener('change',e=>{
+    const f=e.target.files&&e.target.files[0];
+    if(!f){state.motionRefUrl=null;debugLog('info','MOTION','Référence retirée');return}
+    if(f.size>25*1024*1024){showToast('Vidéo de référence trop lourde (>25 Mo)','error',4000);state.motionRefUrl=null;return}
+    const r=new FileReader();
+    r.onload=()=>{state.motionRefUrl=r.result;debugLog('success','MOTION','Référence de mouvement chargée ('+Math.round(f.size/1024)+' Ko)')};
+    r.readAsDataURL(f);
+  });
+
   document.getElementById('debug-header').addEventListener('click',e=>{if(e.target.tagName==='BUTTON')return;toggleDebugCollapse()});
   document.getElementById('debug-collapse-btn').addEventListener('click',e=>{e.stopPropagation();toggleDebugCollapse()});
   document.getElementById('debug-clear-btn').addEventListener('click',e=>{e.stopPropagation();clearDebug()});
@@ -1151,8 +1283,7 @@ function stopFilmPlayback(){
   setInterval(renderKeysStatus,1000);
   updateButtons();
 
-  debugLog('success','INIT','Ciné IA v5 — MODÈLE 2.5 CORRIGÉ + clés sk- et cpk-');
-  debugLog('info','INIT','Format vidéo 2.5 : seconds (4-12), mode text/keyframe, size 720P (flash)');
-  debugLog('info','INIT','Champs obsolètes SUPPRIMÉS : num_frames, frame_rate, image, height, width');
-  debugLog('info','INIT','Utilisez « Tester les clés » pour détecter les modèles disponibles');
+  debugLog('success','INIT','Ciné IA v6 — LIP SYNC native + TTS edge-tts + montage');
+  debugLog('info','INIT','Lip sync : mode reference (images + audios), voix edge-tts fixe par personnage');
+  debugLog('info','INIT','Montage : concat + musique + sous-titres via backend (port 8648)');
 })();
