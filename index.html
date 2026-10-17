@@ -388,9 +388,7 @@ const DEBUG_MAX = 800;
 // ⚠️ Préfixes acceptés : sk- (gratuit) et cpk- (payant)
 const KEY_PREFIXES = ['sk-', 'cpk-'];
 
-// Tailles autorisées pour Flash (uniquement 720P) et pour le 2.5 complet
-const FLASH_ALLOWED_SIZES = ['720P'];
-const FULL_ALLOWED_SIZES = ['720P', '1080P', '1K', '2K'];
+// (tailles vidéo : flash = 720P uniquement, modèle 2.5 complet = jusqu'à 1080P/2K)
 
 // ══════════════════════════════════════════════════════════════════
 // CATALOGUES (inchangés)
@@ -795,7 +793,7 @@ function decodeCompositeId(composite){
  */
 async function createVideoTaskWithModel(prompt,imageUrl,durationSeconds,modelId){
   // Déterminer la taille selon le modèle
-  const size = modelId === 'agnes-video-2.5-flash' ? '720P' : '720P'; // le 2.5 peut prendre 720P par défaut
+  const size = modelId === 'agnes-video-2.5-flash' ? '720P' : '1080P';
   
   // Construire le body au format 2.5
   const body = {
@@ -1037,7 +1035,7 @@ function renderCharacters(){
   if(state.characters.length===0){grid.innerHTML='';return}
   grid.innerHTML=state.characters.map((c,i)=>{
     const cls=c.status==='done'?'character-card done':c.status==='error'?'character-card error':'character-card';
-    const body=c.status==='done'?'<img src="'+c.url+'" alt=""><div class="ch-label">'+esc(c.name)+'</div>':'<div class="ch-placeholder"><div class="spinner-mini"></div><span>Génération…</span></div>';
+    const body=c.status==='done'?'<img src="'+esc(c.url)+'" alt=""><div class="ch-label">'+esc(c.name)+'</div>':'<div class="ch-placeholder"><div class="spinner-mini"></div><span>Génération…</span></div>';
     return '<div class="'+cls+'">'+body+'</div>';
   }).join('');
   const b=document.getElementById('characters-badge');if(b)b.textContent=state.characters.filter(c=>c.status==='done').length+'/'+state.characters.length;
@@ -1166,7 +1164,7 @@ function buildVideoPromptFromScene(scene,script){
     '',
     montageBlock,
     '',
-    spoken?('SPOKEN LINE (French, character speaks to camera, mouth moves in sync): "'+spoken+'"'):'',
+    spoken?('SPOKEN LINE (French, character speaks to camera): "'+spoken+'"'):'',
     '',
     'AUDIO: NO MUSIC. Only diegetic sound (footsteps, breath, wind, ambience).',
     'FORMAT: '+state.ratio+', 24fps, cinematic, film grain, high detail.',
@@ -1500,7 +1498,7 @@ function stopFilmPlayback(){
   });
 
   document.getElementById('generate-btn').addEventListener('click',runPipeline);
-  document.getElementById('stop-btn').addEventListener('click',()=>{state.stopRequested=true;stopTTS();debugLog('warn','STOP','Arrêt demandé');setStatus('Arrêt en cours…')});
+  document.getElementById('stop-btn').addEventListener('click',()=>{state.stopRequested=true;stopTTS();debugLog('warn','STOP','Arrêt demandé');setStatus('Arrêt en cours…');showToast('Arrêt — les scènes déjà lancées se termineront (et seront débitées)','warn',5000)});
 
   document.getElementById('play-film-btn').addEventListener('click',playFilm);
   document.getElementById('replay-btn').addEventListener('click',playFilm);
