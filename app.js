@@ -636,14 +636,14 @@ function renderDirectors(){
 function renderPalettes(){
   const row=document.getElementById('palette-row');
   if(!row)return;
-  row.innerHTML=PALETTES.map(p=>'<button type="button" class="palette-btn'+(state.paletteId===p.id?' active':'')+'" data-palette="'+p.id+'"><span style="display:block;height:12px;border-radius:2px;background:linear-gradient(90deg,'+p.colors.join(',')+');margin-bottom:.3rem;"></span>'+p.label+'</button>').join('');
+  row.innerHTML=PALETTES.map(p=>'<button type="button" class="palette-btn'+(state.paletteId===p.id?' active':'')+'" data-palette="'+p.id+'"><span class="palette-swatches">'+p.colors.map(c=>'<i style="background:'+c+'"></i>').join('')+'</span><span class="palette-name">'+esc(p.label)+'</span></button>').join('');
   row.querySelectorAll('[data-palette]').forEach(btn=>{btn.addEventListener('click',()=>{state.paletteId=btn.dataset.palette;renderPalettes();debugLog('info','PALETTE','Palette : '+PALETTES.find(p=>p.id===state.paletteId).label)})});
 }
 
 function renderIdeaPresets(){
   const row=document.getElementById('idea-presets');
   if(!row)return;
-  row.innerHTML=IDEA_PRESETS.map(t=>'<div class="preset-chip" data-idea="'+esc(t)+'">'+esc(t.slice(0,42))+'…</div>').join('');
+  row.innerHTML=IDEA_PRESETS.map(t=>'<div class="preset-chip" data-idea="'+esc(t)+'">'+esc(t)+'</div>').join('');
   row.querySelectorAll('[data-idea]').forEach(el=>{el.addEventListener('click',()=>{document.getElementById('idea-input').value=el.dataset.idea;updateButtons()})});
 }
 

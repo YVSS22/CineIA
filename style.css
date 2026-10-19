@@ -59,9 +59,7 @@ body {
 /* ══ Top bar ══ */
 .topbar {
   position: sticky; top: 0; z-index: 100;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
 .topbar-inner {
@@ -236,19 +234,19 @@ select option { background: var(--card); color: var(--ink); }
 .model-opt.selected .mo-desc { color: var(--ink-2); }
 
 /* ══ Réalisateurs (app.js) ══ */
-.director-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.director-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
 .director-card {
-  padding: 14px; border-radius: var(--r-sm); cursor: pointer;
+  padding: 11px; border-radius: var(--r-sm); cursor: pointer;
   background: var(--bg); border: 1px solid var(--border-strong);
-  display: flex; align-items: center; gap: 11px;
+  display: flex; align-items: center; gap: 9px;
   transition: transform 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 .director-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); border-color: var(--ink-3); }
 .director-card.selected { background: var(--accent-soft); border-color: var(--accent); }
-.dc-emoji { font-size: 22px; flex-shrink: 0; }
+.dc-emoji { font-size: 20px; flex-shrink: 0; }
 .dc-info { min-width: 0; flex: 1; }
-.dc-nm { font-size: 14px; font-weight: 600; line-height: 1.2; }
-.dc-ds { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-nm { font-size: 13px; font-weight: 600; line-height: 1.25; }
+.dc-ds { font-size: 11px; color: var(--ink-3); margin-top: 1px; line-height: 1.25; }
 .director-card.selected .dc-nm { color: var(--accent); }
 
 /* ══ Palettes (app.js) ══ */
@@ -256,12 +254,18 @@ select option { background: var(--card); color: var(--ink); }
 .palette-btn {
   padding: 12px; border-radius: var(--r-sm); cursor: pointer; text-align: left;
   background: var(--bg); border: 1px solid var(--border-strong);
-  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink);
+  font-family: inherit;
+  display: flex; flex-direction: column; gap: 8px;
   transition: transform 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 .palette-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
 .palette-btn.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.palette-btn span { display: block; height: 12px; border-radius: 4px; margin-bottom: 8px; }
+.palette-swatches { display: flex; gap: 5px; }
+.palette-swatches i {
+  width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.06); display: block;
+}
+.palette-name { font-size: 13px; font-weight: 600; color: var(--ink); }
 
 /* ══ Switch iOS ══ */
 .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
