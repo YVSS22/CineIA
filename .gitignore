@@ -1,3 +1,6 @@
 # musique + sorties montage : volumineux, restent sur le VPS (le backend Python y tourne)
 music/
 output/
+
+# déploiement temporaire (maquettes live Cloudflare)
+deploy/
