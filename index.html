@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ciné IA — De l'idée au film</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -283,16 +283,16 @@
 
 </main>
 
-<div class="status-bar" id="status-bar"><div class="spinner"></div><span id="status-text">Préparation…</span></div>
+<div class="status-bar" id="status-bar"><div class="spinner"></div><span id="status-text"></span></div>
 <div class="toast" id="toast"><span id="toast-icon">✓</span><span id="toast-text">Message</span></div>
 
-<div class="debug-panel" id="debug-panel">
+<div class="debug-panel collapsed" id="debug-panel">
   <div class="debug-header" id="debug-header">
     <div class="debug-title">Console <span class="debug-badge" id="debug-count">0</span></div>
     <div class="debug-actions">
       <button type="button" id="debug-copy-btn">Copier</button>
       <button type="button" id="debug-clear-btn">Effacer</button>
-      <button type="button" id="debug-collapse-btn">−</button>
+      <button type="button" id="debug-collapse-btn">+</button>
     </div>
   </div>
   <div class="debug-body" id="debug-body"></div>

@@ -33,22 +33,22 @@ const BACKEND_URL = (location.hostname==='187.7.65.97') ? '' : 'http://187.7.65.
 // CATALOGUES (inchangés)
 // ══════════════════════════════════════════════════════════════════
 const DIRECTORS = [
-  { id:'wes-anderson', emoji:'🎨', name:'Wes Anderson', sig:'perfect bilateral symmetry, centered frontal framing, deadpan tableaux, pastel palette, meticulous set dressing' },
-  { id:'moebius', emoji:'🏜️', name:'Moebius', sig:'clean flowing line art, minimalist futuristic garments, unisex tunics, endless desert landscapes, serene sci-fi' },
-  { id:'enki-bilal', emoji:'🌆', name:'Enki Bilal', sig:'angular expressive faces, dramatic chiaroscuro, dystopian grandeur, striking bone structure' },
-  { id:'kurosawa', emoji:'⚔️', name:'Akira Kurosawa', sig:'dynamic weather as emotion, samurai stillness, dramatic staging, elemental landscapes' },
-  { id:'miyazaki', emoji:'🌿', name:'Hayao Miyazaki', sig:'lush nature, warm hand-drawn aesthetic, quiet wonder, wind as character, gentle heroism' },
-  { id:'villeneuve', emoji:'🏛️', name:'Denis Villeneuve', sig:'monumental architecture, muted color palette, oppressive atmosphere, slow grand cinematography' },
-  { id:'wong-kar-wai', emoji:'🌃', name:'Wong Kar-wai', sig:'saturated jewel tones, romantic longing, smoky interiors, neon reflections, slow-motion yearning' },
-  { id:'kubrick', emoji:'🔲', name:'Stanley Kubrick', sig:'one-point perspective, cold symmetry, unsettling perfection, wide-angle unease' },
-  { id:'burton', emoji:'🦇', name:'Tim Burton', sig:'gothic whimsy, striped palettes, crooked architecture, melancholic fairy-tale world' },
-  { id:'tarkovsky', emoji:'💧', name:'Andrei Tarkovsky', sig:'long slow takes, water and earth elements, spiritual decay, haunting stillness' },
-  { id:'akira', emoji:'🏍️', name:'Katsuhiro Otomo', sig:'dense cyberpunk cityscapes, extreme perspective, detailed mechanical design, neon and chrome' },
-  { id:'ghibli', emoji:'✈️', name:'Studio Ghibli', sig:'hand-painted watercolor backgrounds, quiet wonder, warm palettes' },
-  { id:'refn', emoji:'🌺', name:'Nicolas W. Refn', sig:'neon-soaked silence, geometric staging, minimalist brutality, hypnotic pacing' },
-  { id:'fellini', emoji:'🎪', name:'Federico Fellini', sig:'surreal carnival imagery, dreamlike procession, theatrical absurdity, ornate costumes' },
-  { id:'lynch', emoji:'🚪', name:'David Lynch', sig:'suburban uncanny, red curtains, dark ambient, dream logic, unsettling warmth' },
-  { id:'del-toro', emoji:'🐟', name:'Guillermo del Toro', sig:'ornate gothic fantasy, empathetic monsters, warm amber tones, lush creature design' }
+  { id:'wes-anderson', emoji:'🎨', name:'Wes Anderson', desc:'Symétrie pastel', sig:'perfect bilateral symmetry, centered frontal framing, deadpan tableaux, pastel palette, meticulous set dressing' },
+  { id:'moebius', emoji:'🏜️', name:'Moebius', desc:'Ligne claire SF', sig:'clean flowing line art, minimalist futuristic garments, unisex tunics, endless desert landscapes, serene sci-fi' },
+  { id:'enki-bilal', emoji:'🌆', name:'Enki Bilal', desc:'Dystopie anguleuse', sig:'angular expressive faces, dramatic chiaroscuro, dystopian grandeur, striking bone structure' },
+  { id:'kurosawa', emoji:'⚔️', name:'Akira Kurosawa', desc:'Stature samouraï', sig:'dynamic weather as emotion, samurai stillness, dramatic staging, elemental landscapes' },
+  { id:'miyazaki', emoji:'🌿', name:'Hayao Miyazaki', desc:'Nature dessinée', sig:'lush nature, warm hand-drawn aesthetic, quiet wonder, wind as character, gentle heroism' },
+  { id:'villeneuve', emoji:'🏛️', name:'Denis Villeneuve', desc:'Monumental', sig:'monumental architecture, muted color palette, oppressive atmosphere, slow grand cinematography' },
+  { id:'wong-kar-wai', emoji:'🌃', name:'Wong Kar-wai', desc:'Nuits néon', sig:'saturated jewel tones, romantic longing, smoky interiors, neon reflections, slow-motion yearning' },
+  { id:'kubrick', emoji:'🔲', name:'Stanley Kubrick', desc:'Symétrie froide', sig:'one-point perspective, cold symmetry, unsettling perfection, wide-angle unease' },
+  { id:'burton', emoji:'🦇', name:'Tim Burton', desc:'Gothique féerique', sig:'gothic whimsy, striped palettes, crooked architecture, melancholic fairy-tale world' },
+  { id:'tarkovsky', emoji:'💧', name:'Andrei Tarkovsky', desc:'Lenteur spirituelle', sig:'long slow takes, water and earth elements, spiritual decay, haunting stillness' },
+  { id:'akira', emoji:'🏍️', name:'Katsuhiro Otomo', desc:'Cyberpunk dense', sig:'dense cyberpunk cityscapes, extreme perspective, detailed mechanical design, neon and chrome' },
+  { id:'ghibli', emoji:'✈️', name:'Studio Ghibli', desc:'Aquarelle chaude', sig:'hand-painted watercolor backgrounds, quiet wonder, warm palettes' },
+  { id:'refn', emoji:'🌺', name:'Nicolas W. Refn', desc:'Néon minimaliste', sig:'neon-soaked silence, geometric staging, minimalist brutality, hypnotic pacing' },
+  { id:'fellini', emoji:'🎪', name:'Federico Fellini', desc:'Cirque surréaliste', sig:'surreal carnival imagery, dreamlike procession, theatrical absurdity, ornate costumes' },
+  { id:'lynch', emoji:'🚪', name:'David Lynch', desc:'Étrangeté rêvée', sig:'suburban uncanny, red curtains, dark ambient, dream logic, unsettling warmth' },
+  { id:'del-toro', emoji:'🐟', name:'Guillermo del Toro', desc:'Monstres gothiques', sig:'ornate gothic fantasy, empathetic monsters, warm amber tones, lush creature design' }
 ];
 
 const PALETTES = [
@@ -126,7 +126,7 @@ function sanitizeForApi(text){
 // ══════════════════════════════════════════════════════════════════
 // DEBUG
 // ══════════════════════════════════════════════════════════════════
-let debugCount=0,debugEntries=[],debugCollapsed=false;
+let debugCount=0,debugEntries=[],debugCollapsed=true;
 function debugLog(level,category,message,data){const body=document.getElementById('debug-body');if(!body)return;const time=nowTime();const entry=document.createElement('div');entry.className='debug-entry '+level;let html='<span class="debug-time">'+time+'</span><span class="debug-cat">['+esc(category)+']</span><span class="debug-msg">'+esc(message)+'</span>';if(data!==undefined&&data!==null){let ds;if(typeof data==='string')ds=data;else{try{ds=JSON.stringify(data,null,2)}catch(e){ds=String(data)}}if(ds.length>3000)ds=ds.slice(0,3000)+'\n…[tronqué]';html+='<pre class="debug-data">'+esc(ds)+'</pre>'}entry.innerHTML=html;body.appendChild(entry);debugEntries.push({time,level,category,message});if(debugEntries.length>DEBUG_MAX)debugEntries.shift();while(body.children.length>DEBUG_MAX)body.removeChild(body.firstChild);body.scrollTop=body.scrollHeight;debugCount++;const c=document.getElementById('debug-count');if(c)c.textContent=debugCount;}
 function clearDebug(){const b=document.getElementById('debug-body');if(b)b.innerHTML='';debugEntries=[];debugCount=0;const c=document.getElementById('debug-count');if(c)c.textContent='0'}
 function copyDebug(){const lines=debugEntries.map(e=>e.time+' ['+e.category+'] '+e.message).join('\n');const finish=(ok)=>showToast(ok?'Console copiée':'Copie impossible',ok?'success':'error');try{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(lines).then(()=>finish(true)).catch(()=>legacyCopy(lines,finish));return}}catch(e){}legacyCopy(lines,finish)}
@@ -629,7 +629,7 @@ function updateButtons(){
 function renderDirectors(){
   const grid=document.getElementById('director-grid');
   if(!grid)return;
-  grid.innerHTML=DIRECTORS.map(d=>'<div class="director-card'+(state.directorId===d.id?' selected':'')+'" data-director="'+d.id+'"><div class="dc-emoji">'+d.emoji+'</div><div class="dc-info"><div class="dc-nm">'+esc(d.name)+'</div><div class="dc-ds">'+esc(d.sig.slice(0,60))+'…</div></div></div>').join('');
+  grid.innerHTML=DIRECTORS.map(d=>'<div class="director-card'+(state.directorId===d.id?' selected':'')+'" data-director="'+d.id+'"><div class="dc-emoji">'+d.emoji+'</div><div class="dc-info"><div class="dc-nm">'+esc(d.name)+'</div><div class="dc-ds">'+esc(d.desc||'')+'</div></div></div>').join('');
   grid.querySelectorAll('[data-director]').forEach(el=>{el.addEventListener('click',()=>{state.directorId=el.dataset.director;renderDirectors();updateButtons();debugLog('info','DIRECTOR','Style : '+DIRECTORS.find(d=>d.id===state.directorId).name)})});
 }
 
